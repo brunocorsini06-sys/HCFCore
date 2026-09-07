@@ -18,13 +18,28 @@ public class FactionManager {
     private final Map<UUID, Integer> kills = new HashMap<>();
     private final Map<UUID, Integer> deaths = new HashMap<>();
 
+    /*
+     * Última regeneración de DTR por faction.
+     */
+    private final Map<String, Long> lastDtrRegeneration = new HashMap<>();
+
     public FactionManager(HCFCore plugin) {
         this.plugin = plugin;
     }
 
+    // =========================================================
+    // FACTIONS
+    // =========================================================
+
     public Faction createFaction(Player player, String name) {
 
-        if (name == null || name.length() < 3 || name.length() > 16) {
+        if (player == null || name == null) {
+            return null;
+        }
+
+        name = name.trim();
+
+        if (name.length() < 3 || name.length() > 16) {
             return null;
         }
 
@@ -32,31 +47,33 @@ public class FactionManager {
             return null;
         }
 
-        if (factions.containsKey(name.toLowerCase())) {
+        if (factions.containsKey(name.toLowerCase(Locale.ROOT))) {
             return null;
         }
 
-        double startingDtr =
-                plugin.getConfig().getDouble(
-                        "factions.starting-dtr",
-                        1.0
-                );
-
-        Faction faction =
-                new Faction(
-                        name,
-                        player.getUniqueId(),
-                        startingDtr
-                );
-
-        factions.put(
-                name.toLowerCase(),
-                faction
+        double startingDtr = plugin.getConfig().getDouble(
+                "factions.starting-dtr",
+                1.0
         );
+
+        Faction faction = new Faction(
+                name,
+                player.getUniqueId(),
+                startingDtr
+        );
+
+        String key = name.toLowerCase(Locale.ROOT);
+
+        factions.put(key, faction);
 
         playerFactions.put(
                 player.getUniqueId(),
-                name.toLowerCase()
+                key
+        );
+
+        lastDtrRegeneration.put(
+                key,
+                System.currentTimeMillis()
         );
 
         return faction;
@@ -68,25 +85,32 @@ public class FactionManager {
             return;
         }
 
-        for (UUID uuid :
-                new HashSet<>(faction.getMembers())) {
+        String key = faction.getName().toLowerCase(Locale.ROOT);
 
+        for (UUID uuid : new HashSet<>(faction.getMembers())) {
             playerFactions.remove(uuid);
         }
 
-        factions.remove(
-                faction.getName().toLowerCase()
-        );
+        factions.remove(key);
+        lastDtrRegeneration.remove(key);
     }
 
     public Faction getFaction(Player player) {
+
+        if (player == null) {
+            return null;
+        }
+
         return getFaction(player.getUniqueId());
     }
 
     public Faction getFaction(UUID uuid) {
 
-        String factionName =
-                playerFactions.get(uuid);
+        if (uuid == null) {
+            return null;
+        }
+
+        String factionName = playerFactions.get(uuid);
 
         if (factionName == null) {
             return null;
@@ -102,7 +126,7 @@ public class FactionManager {
         }
 
         return factions.get(
-                name.toLowerCase()
+                name.toLowerCase(Locale.ROOT)
         );
     }
 
@@ -111,8 +135,11 @@ public class FactionManager {
             String name
     ) {
 
-        Faction faction =
-                getFaction(name);
+        if (player == null || name == null) {
+            return false;
+        }
+
+        Faction faction = getFaction(name);
 
         if (faction == null) {
             return false;
@@ -126,15 +153,12 @@ public class FactionManager {
             return false;
         }
 
-        int maxMembers =
-                plugin.getConfig().getInt(
-                        "factions.max-members",
-                        20
-                );
+        int maxMembers = plugin.getConfig().getInt(
+                "factions.max-members",
+                20
+        );
 
-        if (faction.getMembers().size()
-                >= maxMembers) {
-
+        if (faction.getMembers().size() >= maxMembers) {
             return false;
         }
 
@@ -144,7 +168,7 @@ public class FactionManager {
 
         playerFactions.put(
                 player.getUniqueId(),
-                faction.getName().toLowerCase()
+                faction.getName().toLowerCase(Locale.ROOT)
         );
 
         removeInvite(player);
@@ -154,16 +178,20 @@ public class FactionManager {
 
     public void leaveFaction(Player player) {
 
-        Faction faction =
-                getFaction(player);
+        if (player == null) {
+            return;
+        }
+
+        Faction faction = getFaction(player);
 
         if (faction == null) {
             return;
         }
 
-        if (faction.isLeader(
-                player.getUniqueId())) {
-
+        /*
+         * El líder no puede abandonar directamente.
+         */
+        if (faction.isLeader(player.getUniqueId())) {
             return;
         }
 
@@ -176,6 +204,10 @@ public class FactionManager {
         );
     }
 
+    // =========================================================
+    // INVITACIONES
+    // =========================================================
+
     public boolean invite(
             Player target,
             Faction faction
@@ -187,7 +219,7 @@ public class FactionManager {
 
         invites.put(
                 target.getUniqueId(),
-                faction.getName().toLowerCase()
+                faction.getName().toLowerCase(Locale.ROOT)
         );
 
         return true;
@@ -198,30 +230,39 @@ public class FactionManager {
             String factionName
     ) {
 
-        String invite =
-                invites.get(
-                        player.getUniqueId()
-                );
+        if (player == null || factionName == null) {
+            return false;
+        }
+
+        String invite = invites.get(
+                player.getUniqueId()
+        );
 
         return invite != null
-                && invite.equalsIgnoreCase(
-                        factionName
-                );
+                && invite.equalsIgnoreCase(factionName);
     }
 
     public void removeInvite(Player player) {
+
+        if (player == null) {
+            return;
+        }
 
         invites.remove(
                 player.getUniqueId()
         );
     }
 
+    // =========================================================
+    // RANKS
+    // =========================================================
+
     public void promote(
             Faction faction,
             UUID uuid
     ) {
 
-        if (faction == null) {
+        if (faction == null || uuid == null) {
             return;
         }
 
@@ -233,18 +274,16 @@ public class FactionManager {
             UUID uuid
     ) {
 
-        if (faction == null) {
+        if (faction == null || uuid == null) {
             return;
         }
 
         faction.demote(uuid);
     }
 
-    /*
-     * =========================
-     * KILLS / DEATHS
-     * =========================
-     */
+    // =========================================================
+    // KILLS / DEATHS
+    // =========================================================
 
     public void addKill(Player player) {
 
@@ -252,8 +291,7 @@ public class FactionManager {
             return;
         }
 
-        UUID uuid =
-                player.getUniqueId();
+        UUID uuid = player.getUniqueId();
 
         kills.put(
                 uuid,
@@ -267,8 +305,7 @@ public class FactionManager {
             return;
         }
 
-        UUID uuid =
-                player.getUniqueId();
+        UUID uuid = player.getUniqueId();
 
         deaths.put(
                 uuid,
@@ -300,19 +337,9 @@ public class FactionManager {
         );
     }
 
-    /*
-     * =========================
-     * FACTIONS
-     * =========================
-     */
-
-    public Collection<Faction> getFactions() {
-        return factions.values();
-    }
-
-    public Map<String, Faction> getFactionMap() {
-        return factions;
-    }
+    // =========================================================
+    // DTR
+    // =========================================================
 
     public void regenerateDtr() {
 
@@ -323,31 +350,102 @@ public class FactionManager {
             return;
         }
 
-        double maxDtr =
-                plugin.getConfig().getDouble(
-                        "factions.max-dtr",
-                        5.0
-                );
+        /*
+         * Cuánto tiempo debe pasar entre regeneraciones.
+         */
+        int regenerationMinutes = plugin.getConfig().getInt(
+                "factions.dtr-regeneration-minutes",
+                10
+        );
 
-        for (Faction faction :
-                factions.values()) {
+        if (regenerationMinutes <= 0) {
+            regenerationMinutes = 10;
+        }
 
-            if (faction.getDtr() < maxDtr) {
+        long regenerationInterval =
+                regenerationMinutes * 60L * 1000L;
 
-                faction.setDtr(
-                        Math.min(
-                                maxDtr,
-                                faction.getDtr() + 0.05
-                        )
-                );
+        /*
+         * Cantidad de DTR recuperada por ciclo.
+         */
+        double regenerationAmount = 0.05;
+
+        /*
+         * DTR máximo.
+         */
+        double maxDtr = plugin.getConfig().getDouble(
+                "factions.max-dtr",
+                5.0
+        );
+
+        long now = System.currentTimeMillis();
+
+        for (Faction faction : factions.values()) {
+
+            if (faction == null) {
+                continue;
             }
+
+            String key =
+                    faction.getName().toLowerCase(Locale.ROOT);
+
+            long last =
+                    lastDtrRegeneration.getOrDefault(
+                            key,
+                            now
+                    );
+
+            /*
+             * Todavía no pasó el tiempo necesario.
+             */
+            if (now - last < regenerationInterval) {
+                continue;
+            }
+
+            /*
+             * Actualizamos el timestamp aunque
+             * la faction ya esté al máximo.
+             */
+            lastDtrRegeneration.put(
+                    key,
+                    now
+            );
+
+            if (faction.getDtr() >= maxDtr) {
+                continue;
+            }
+
+            double newDtr = Math.min(
+                    maxDtr,
+                    faction.getDtr() + regenerationAmount
+            );
+
+            faction.setDtr(newDtr);
         }
     }
 
+    // =========================================================
+    // UTILIDADES
+    // =========================================================
+
+    public Collection<Faction> getFactions() {
+        return factions.values();
+    }
+
+    public Map<String, Faction> getFactionMap() {
+        return factions;
+    }
+
+    // =========================================================
+    // PERSISTENCIA
+    // =========================================================
+
     public void saveAll() {
+
         /*
-         * La persistencia se añadirá
-         * posteriormente mediante almacenamiento.
+         * La persistencia se añadirá posteriormente.
+         *
+         * Actualmente las factions viven en memoria.
          */
     }
 }
