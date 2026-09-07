@@ -28,59 +28,50 @@ public class Commands implements CommandExecutor {
         String cmd =
                 command.getName().toLowerCase(Locale.ROOT);
 
-        if (cmd.equals("hcf")) {
-            return hcfCommand(sender, args);
-        }
+        switch (cmd) {
 
-        if (cmd.equals("airdrop")) {
-            return airdropCommand(sender, args);
-        }
+            case "hcf":
+                return hcfCommand(sender, args);
 
-        if (cmd.equals("kit")) {
-            return kitCommand(sender, args);
-        }
+            case "airdrop":
+                return airdropCommand(sender, args);
 
-        if (cmd.equals("koth")) {
-            return kothCommand(sender, args);
-        }
+            case "kit":
+                return kitCommand(sender, args);
 
-        if (cmd.equals("claim")) {
-            return claimCommand(sender, args);
-        }
+            case "koth":
+                return kothCommand(sender, args);
 
-        if (cmd.equals("combat")) {
-            return combatCommand(sender, args);
-        }
+            case "claim":
+                return claimCommand(sender, args);
 
-        if (cmd.equals("pay")) {
-            return payCommand(sender, args);
-        }
+            case "combat":
+                return combatCommand(sender, args);
 
-        if (cmd.equals("balance")) {
-            return balanceCommand(sender);
-        }
+            case "pay":
+                return payCommand(sender, args);
 
-        if (cmd.equals("lives")) {
-            return livesCommand(sender, args);
-        }
+            case "balance":
+                return balanceCommand(sender);
 
-        if (cmd.equals("deathban")) {
-            return deathbanCommand(sender, args);
-        }
+            case "lives":
+                return livesCommand(sender, args);
 
-        if (cmd.equals("class")) {
-            return classCommand(sender, args);
-        }
+            case "deathban":
+                return deathbanCommand(sender, args);
 
-        if (cmd.equals("spawn")) {
-            return spawnCommand(sender);
-        }
+            case "class":
+                return classCommand(sender, args);
 
-        if (cmd.equals("f")) {
-            return factionCommand(sender, args);
-        }
+            case "spawn":
+                return spawnCommand(sender);
 
-        return false;
+            case "f":
+                return factionCommand(sender, args);
+
+            default:
+                return false;
+        }
     }
 
     /*
@@ -95,21 +86,33 @@ public class Commands implements CommandExecutor {
     ) {
 
         if (!isPlayer(sender)) {
+
             sender.sendMessage(
                     ChatColor.RED +
                             "Este comando requiere un jugador."
             );
+
             return true;
         }
 
-        Player player =
-                (Player) sender;
+        Player player = (Player) sender;
 
         if (!hasAdmin(player)) {
+
+            player.sendMessage(
+                    ChatColor.RED +
+                            "No tienes permiso."
+            );
+
             return true;
         }
 
         if (args.length == 0) {
+
+            player.sendMessage(
+                    ChatColor.GOLD +
+                            "━━━━━━━━━━━━━━━━━━━━"
+            );
 
             player.sendMessage(
                     ChatColor.GOLD +
@@ -121,13 +124,26 @@ public class Commands implements CommandExecutor {
                             "/hcf editor"
             );
 
+            player.sendMessage(
+                    ChatColor.GRAY +
+                            "/hcf reload"
+            );
+
+            player.sendMessage(
+                    ChatColor.GOLD +
+                            "━━━━━━━━━━━━━━━━━━━━"
+            );
+
             return true;
         }
 
         if (args[0].equalsIgnoreCase("editor")) {
 
-            plugin.getGuiManager()
-                    .openMain(player);
+            if (plugin.getGuiManager() != null) {
+
+                plugin.getGuiManager()
+                        .openMain(player);
+            }
 
             return true;
         }
@@ -143,6 +159,11 @@ public class Commands implements CommandExecutor {
 
             return true;
         }
+
+        player.sendMessage(
+                ChatColor.RED +
+                        "Subcomando desconocido."
+        );
 
         return true;
     }
@@ -162,8 +183,7 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        Player player =
-                (Player) sender;
+        Player player = (Player) sender;
 
         if (args.length == 0) {
 
@@ -186,6 +206,12 @@ public class Commands implements CommandExecutor {
         }
 
         if (!hasAdmin(player)) {
+
+            player.sendMessage(
+                    ChatColor.RED +
+                            "No tienes permiso."
+            );
+
             return true;
         }
 
@@ -199,13 +225,21 @@ public class Commands implements CommandExecutor {
 
         if (args[0].equalsIgnoreCase("spawn")) {
 
-            plugin.getAirdropManager()
-                    .spawnAirdrop();
+            if (plugin.getAirdropManager()
+                    .spawnAirdrop()) {
 
-            player.sendMessage(
-                    ChatColor.GREEN +
-                            "✓ Airdrop creado."
-            );
+                player.sendMessage(
+                        ChatColor.GREEN +
+                                "✓ Airdrop creado."
+                );
+
+            } else {
+
+                player.sendMessage(
+                        ChatColor.RED +
+                                "No se pudo crear el airdrop."
+                );
+            }
 
             return true;
         }
@@ -222,6 +256,11 @@ public class Commands implements CommandExecutor {
 
             return true;
         }
+
+        player.sendMessage(
+                ChatColor.RED +
+                        "Uso: /airdrop <edit|spawn|remove>"
+        );
 
         return true;
     }
@@ -241,8 +280,7 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        Player player =
-                (Player) sender;
+        Player player = (Player) sender;
 
         if (args.length == 0) {
 
@@ -262,6 +300,12 @@ public class Commands implements CommandExecutor {
         if (args[0].equalsIgnoreCase("edit")) {
 
             if (!hasAdmin(player)) {
+
+                player.sendMessage(
+                        ChatColor.RED +
+                                "No tienes permiso."
+                );
+
                 return true;
             }
 
@@ -332,8 +376,7 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        Player player =
-                (Player) sender;
+        Player player = (Player) sender;
 
         if (args.length == 0) {
 
@@ -356,6 +399,12 @@ public class Commands implements CommandExecutor {
         }
 
         if (!hasAdmin(player)) {
+
+            player.sendMessage(
+                    ChatColor.RED +
+                            "No tienes permiso."
+            );
+
             return true;
         }
 
@@ -369,18 +418,67 @@ public class Commands implements CommandExecutor {
 
         if (args[0].equalsIgnoreCase("start")) {
 
+            if (plugin.getKothManager()
+                    .isActive()) {
+
+                player.sendMessage(
+                        ChatColor.YELLOW +
+                                "El KOTH ya está activo."
+                );
+
+                return true;
+            }
+
+            if (plugin.getKothManager()
+                    .getLocation() == null) {
+
+                player.sendMessage(
+                        ChatColor.RED +
+                                "No hay ubicación configurada."
+                );
+
+                player.sendMessage(
+                        ChatColor.GRAY +
+                                "Usa /koth edit"
+                );
+
+                return true;
+            }
+
             plugin.getKothManager()
                     .startKoth();
 
-            player.sendMessage(
-                    ChatColor.GREEN +
-                            "✓ KOTH iniciado."
-            );
+            if (plugin.getKothManager()
+                    .isActive()) {
+
+                player.sendMessage(
+                        ChatColor.GREEN +
+                                "✓ KOTH iniciado."
+                );
+
+            } else {
+
+                player.sendMessage(
+                        ChatColor.RED +
+                                "No se pudo iniciar el KOTH."
+                );
+            }
 
             return true;
         }
 
         if (args[0].equalsIgnoreCase("stop")) {
+
+            if (!plugin.getKothManager()
+                    .isActive()) {
+
+                player.sendMessage(
+                        ChatColor.YELLOW +
+                                "El KOTH no está activo."
+                );
+
+                return true;
+            }
 
             plugin.getKothManager()
                     .stopKoth();
@@ -392,6 +490,11 @@ public class Commands implements CommandExecutor {
 
             return true;
         }
+
+        player.sendMessage(
+                ChatColor.RED +
+                        "Uso: /koth <edit|start|stop>"
+        );
 
         return true;
     }
@@ -411,8 +514,7 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        Player player =
-                (Player) sender;
+        Player player = (Player) sender;
 
         if (args.length > 0
                 && args[0].equalsIgnoreCase("unclaim")) {
@@ -470,8 +572,7 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        Player player =
-                (Player) sender;
+        Player player = (Player) sender;
 
         long remaining =
                 plugin.getCombatManager()
@@ -481,7 +582,7 @@ public class Commands implements CommandExecutor {
 
             player.sendMessage(
                     ChatColor.RED +
-                            "Estás en combate: "
+                            "⚔ Estás en combate: "
                             + remaining
                             + "s"
             );
@@ -490,7 +591,7 @@ public class Commands implements CommandExecutor {
 
             player.sendMessage(
                     ChatColor.GREEN +
-                            "No estás en combate."
+                            "✓ No estás en combate."
             );
         }
 
@@ -512,8 +613,7 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        Player player =
-                (Player) sender;
+        Player player = (Player) sender;
 
         if (args.length < 2) {
 
@@ -538,6 +638,16 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
+        if (target.equals(player)) {
+
+            player.sendMessage(
+                    ChatColor.RED +
+                            "No puedes pagarte a ti mismo."
+            );
+
+            return true;
+        }
+
         double amount;
 
         try {
@@ -552,6 +662,18 @@ public class Commands implements CommandExecutor {
             player.sendMessage(
                     ChatColor.RED +
                             "Cantidad inválida."
+            );
+
+            return true;
+        }
+
+        if (Double.isNaN(amount)
+                || Double.isInfinite(amount)
+                || amount <= 0) {
+
+            player.sendMessage(
+                    ChatColor.RED +
+                            "La cantidad debe ser mayor que 0."
             );
 
             return true;
@@ -599,8 +721,7 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        Player player =
-                (Player) sender;
+        Player player = (Player) sender;
 
         double balance =
                 plugin.getEconomyManager()
@@ -608,7 +729,7 @@ public class Commands implements CommandExecutor {
 
         player.sendMessage(
                 ChatColor.GREEN +
-                        "Balance: $"
+                        "💰 Balance: $"
                         + balance
         );
 
@@ -630,14 +751,13 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        Player player =
-                (Player) sender;
+        Player player = (Player) sender;
 
         if (args.length == 0) {
 
             player.sendMessage(
                     ChatColor.YELLOW +
-                            "Vidas: "
+                            "❤ Vidas: "
                             + plugin.getDeathbanManager()
                             .getLives(player)
             );
@@ -646,6 +766,12 @@ public class Commands implements CommandExecutor {
         }
 
         if (!hasAdmin(player)) {
+
+            player.sendMessage(
+                    ChatColor.RED +
+                            "No tienes permiso."
+            );
+
             return true;
         }
 
@@ -653,6 +779,12 @@ public class Commands implements CommandExecutor {
                 Bukkit.getPlayer(args[0]);
 
         if (target == null) {
+
+            player.sendMessage(
+                    ChatColor.RED +
+                            "Jugador no encontrado."
+            );
+
             return true;
         }
 
@@ -661,10 +793,31 @@ public class Commands implements CommandExecutor {
         if (args.length >= 2) {
 
             try {
+
                 amount =
-                        Integer.parseInt(args[1]);
-            } catch (NumberFormatException ignored) {
+                        Integer.parseInt(
+                                args[1]
+                        );
+
+            } catch (NumberFormatException e) {
+
+                player.sendMessage(
+                        ChatColor.RED +
+                                "Cantidad inválida."
+                );
+
+                return true;
             }
+        }
+
+        if (amount <= 0) {
+
+            player.sendMessage(
+                    ChatColor.RED +
+                            "La cantidad debe ser mayor que 0."
+            );
+
+            return true;
         }
 
         plugin.getDeathbanManager()
@@ -675,7 +828,10 @@ public class Commands implements CommandExecutor {
 
         player.sendMessage(
                 ChatColor.GREEN +
-                        "✓ Vida agregada."
+                        "✓ Agregaste "
+                        + amount
+                        + " vida(s) a "
+                        + target.getName()
         );
 
         return true;
@@ -696,8 +852,7 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        Player player =
-                (Player) sender;
+        Player player = (Player) sender;
 
         if (args.length == 0) {
 
@@ -711,14 +866,14 @@ public class Commands implements CommandExecutor {
 
                 player.sendMessage(
                         ChatColor.RED +
-                                "Deathban permanente."
+                                "☠ Deathban permanente."
                 );
 
             } else if (remaining > 0) {
 
                 player.sendMessage(
                         ChatColor.RED +
-                                "Deathban: "
+                                "☠ Deathban: "
                                 + formatTime(
                                         remaining
                                 )
@@ -728,7 +883,7 @@ public class Commands implements CommandExecutor {
 
                 player.sendMessage(
                         ChatColor.GREEN +
-                                "No estás deathbaneado."
+                                "✓ No estás deathbaneado."
                 );
             }
 
@@ -736,6 +891,12 @@ public class Commands implements CommandExecutor {
         }
 
         if (!hasAdmin(player)) {
+
+            player.sendMessage(
+                    ChatColor.RED +
+                            "No tienes permiso."
+            );
+
             return true;
         }
 
@@ -743,6 +904,12 @@ public class Commands implements CommandExecutor {
                 Bukkit.getPlayer(args[0]);
 
         if (target == null) {
+
+            player.sendMessage(
+                    ChatColor.RED +
+                            "Jugador no encontrado."
+            );
+
             return true;
         }
 
@@ -786,8 +953,7 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        Player player =
-                (Player) sender;
+        Player player = (Player) sender;
 
         if (args.length == 0) {
 
@@ -816,15 +982,34 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        if (!plugin.getClassManager()
-                .setClass(
-                        player,
-                        args[0]
-                )) {
+        String className =
+                args[0].toLowerCase(Locale.ROOT);
+
+        if (!className.equals("archer")
+                && !className.equals("bard")) {
 
             player.sendMessage(
                     ChatColor.RED +
                             "Clase inválida."
+            );
+
+            player.sendMessage(
+                    ChatColor.GRAY +
+                            "Clases disponibles: archer, bard"
+            );
+
+            return true;
+        }
+
+        if (!plugin.getClassManager()
+                .setClass(
+                        player,
+                        className
+                )) {
+
+            player.sendMessage(
+                    ChatColor.RED +
+                            "No se pudo seleccionar la clase."
             );
 
             return true;
@@ -833,7 +1018,7 @@ public class Commands implements CommandExecutor {
         player.sendMessage(
                 ChatColor.GREEN +
                         "✓ Clase seleccionada: "
-                        + args[0]
+                        + className
         );
 
         return true;
@@ -853,12 +1038,16 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        Player player =
-                (Player) sender;
+        Player player = (Player) sender;
 
         player.teleport(
                 player.getWorld()
                         .getSpawnLocation()
+        );
+
+        player.sendMessage(
+                ChatColor.GREEN +
+                        "✓ Teletransportado al spawn."
         );
 
         return true;
@@ -879,8 +1068,7 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        Player player =
-                (Player) sender;
+        Player player = (Player) sender;
 
         if (args.length == 0) {
 
@@ -907,6 +1095,20 @@ public class Commands implements CommandExecutor {
                         ChatColor.GRAY +
                                 "DTR: "
                                 + faction.getDtr()
+                );
+
+                player.sendMessage(
+                        ChatColor.GRAY +
+                                "Kills: "
+                                + plugin.getFactionManager()
+                                .getKills(player)
+                );
+
+                player.sendMessage(
+                        ChatColor.GRAY +
+                                "Deaths: "
+                                + plugin.getFactionManager()
+                                .getDeaths(player)
                 );
             }
 
@@ -955,6 +1157,11 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
+        player.sendMessage(
+                ChatColor.RED +
+                        "Subcomando desconocido."
+        );
+
         return true;
     }
 
@@ -967,13 +1174,16 @@ public class Commands implements CommandExecutor {
     private boolean isPlayer(
             CommandSender sender
     ) {
+
         return sender instanceof Player;
     }
 
     private boolean hasAdmin(
             Player player
     ) {
-        return player.hasPermission(
+
+        return player != null
+                && player.hasPermission(
                 "hcf.admin"
         );
     }
@@ -986,14 +1196,26 @@ public class Commands implements CommandExecutor {
             return "0s";
         }
 
+        long days =
+                seconds / 86400;
+
+        seconds %= 86400;
+
         long hours =
                 seconds / 3600;
 
+        seconds %= 3600;
+
         long minutes =
-                (seconds % 3600) / 60;
+                seconds / 60;
 
         long secs =
                 seconds % 60;
+
+        if (days > 0) {
+            return days + "d "
+                    + hours + "h";
+        }
 
         if (hours > 0) {
             return hours + "h "
