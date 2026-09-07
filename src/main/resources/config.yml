@@ -81,6 +81,23 @@ classes:
     resistance-level: 0
     speed-level: 0
 
+tablist:
+  enabled: true
+
+  header:
+    - "&6&l━━━━━━━━━━━━━━━━━━━━━━━━"
+    - "&e&l        HCFCORE"
+    - "&7Survival HCF"
+    - ""
+
+  footer:
+    - ""
+    - "&7Online: &f%online%"
+    - "&7Tu ping: &a%ping%ms"
+    - "&6&l━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  player-format: "%combat% &f%player% &7[%faction%] &8| &a%ping%ms"
+
 villager:
   enabled: true
 
