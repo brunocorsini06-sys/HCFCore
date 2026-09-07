@@ -12,6 +12,12 @@ public class FactionManager {
     private final Map<UUID, String> playerFactions = new HashMap<>();
     private final Map<UUID, String> invites = new HashMap<>();
 
+    /*
+     * Estadísticas individuales
+     */
+    private final Map<UUID, Integer> kills = new HashMap<>();
+    private final Map<UUID, Integer> deaths = new HashMap<>();
+
     public FactionManager(HCFCore plugin) {
         this.plugin = plugin;
     }
@@ -234,6 +240,72 @@ public class FactionManager {
         faction.demote(uuid);
     }
 
+    /*
+     * =========================
+     * KILLS / DEATHS
+     * =========================
+     */
+
+    public void addKill(Player player) {
+
+        if (player == null) {
+            return;
+        }
+
+        UUID uuid =
+                player.getUniqueId();
+
+        kills.put(
+                uuid,
+                getKills(player) + 1
+        );
+    }
+
+    public void addDeath(Player player) {
+
+        if (player == null) {
+            return;
+        }
+
+        UUID uuid =
+                player.getUniqueId();
+
+        deaths.put(
+                uuid,
+                getDeaths(player) + 1
+        );
+    }
+
+    public int getKills(Player player) {
+
+        if (player == null) {
+            return 0;
+        }
+
+        return kills.getOrDefault(
+                player.getUniqueId(),
+                0
+        );
+    }
+
+    public int getDeaths(Player player) {
+
+        if (player == null) {
+            return 0;
+        }
+
+        return deaths.getOrDefault(
+                player.getUniqueId(),
+                0
+        );
+    }
+
+    /*
+     * =========================
+     * FACTIONS
+     * =========================
+     */
+
     public Collection<Faction> getFactions() {
         return factions.values();
     }
@@ -274,8 +346,8 @@ public class FactionManager {
 
     public void saveAll() {
         /*
-         * La persistencia de factions
-         * se añadirá en la parte de base de datos.
+         * La persistencia se añadirá
+         * posteriormente mediante almacenamiento.
          */
     }
 }
