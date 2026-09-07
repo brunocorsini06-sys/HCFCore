@@ -48,6 +48,7 @@ airdrop:
 
 koth:
   capture-seconds: 120
+  radius: 10
   reward-money: 500
   reward-item: DIAMOND
   reward-item-amount: 4
