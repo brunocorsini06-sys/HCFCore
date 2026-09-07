@@ -20,6 +20,7 @@ public class HCFCore extends JavaPlugin {
     private KothManager kothManager;
     private ScoreboardManager scoreboardManager;
     private VillagerManager villagerManager;
+    private TabListManager tabListManager;
 
     private GUIManager guiManager;
 
@@ -43,24 +44,16 @@ public class HCFCore extends JavaPlugin {
         kothManager = new KothManager(this);
         scoreboardManager = new ScoreboardManager(this);
         villagerManager = new VillagerManager(this);
+        tabListManager = new TabListManager(this);
 
-        /*
-         * Registramos el listener principal.
-         */
         getServer().getPluginManager().registerEvents(
                 new HCFListener(this),
                 this
         );
 
-        /*
-         * Registramos los EditGUI.
-         */
         guiManager = new GUIManager(this);
         guiManager.register();
 
-        /*
-         * Registramos comandos.
-         */
         Commands commands = new Commands(this);
 
         registerCommand("f", commands);
@@ -78,7 +71,7 @@ public class HCFCore extends JavaPlugin {
         registerCommand("balance", commands);
 
         /*
-         * Scoreboard.
+         * SCOREBOARD
          */
         Bukkit.getScheduler().runTaskTimer(
                 this,
@@ -88,7 +81,7 @@ public class HCFCore extends JavaPlugin {
         );
 
         /*
-         * Regeneración DTR.
+         * DTR
          */
         Bukkit.getScheduler().runTaskTimer(
                 this,
@@ -98,24 +91,32 @@ public class HCFCore extends JavaPlugin {
         );
 
         /*
-         * Clases HCF.
+         * CLASES
          */
         classManager.startTask();
 
         /*
-         * Limpieza CombatTag.
+         * COMBAT TAG
          */
         combatManager.startCleanupTask();
 
         /*
-         * Airdrops.
+         * AIRDROPS
          */
         if (getConfig().getBoolean(
                 "airdrop.enabled",
                 true
         )) {
+
             airdropManager.startScheduler();
         }
+
+        /*
+         * TABLIST
+         *
+         * TabListManager ya inicia su
+         * propio sistema de actualización.
+         */
 
         getLogger().info(
                 "================================="
@@ -135,6 +136,10 @@ public class HCFCore extends JavaPlugin {
 
         getLogger().info(
                 "        EditGUI ACTIVADO"
+        );
+
+        getLogger().info(
+                "        TabList ACTIVADO"
         );
 
         getLogger().info(
@@ -212,18 +217,22 @@ public class HCFCore extends JavaPlugin {
     public void onDisable() {
 
         if (airdropManager != null) {
+
             airdropManager.shutdown();
         }
 
         if (factionManager != null) {
+
             factionManager.saveAll();
         }
 
         if (economyManager != null) {
+
             economyManager.saveAll();
         }
 
         if (claimManager != null) {
+
             claimManager.saveAll();
         }
 
@@ -233,54 +242,72 @@ public class HCFCore extends JavaPlugin {
     }
 
     public static HCFCore getInstance() {
+
         return instance;
     }
 
     public FactionManager getFactionManager() {
+
         return factionManager;
     }
 
     public ClaimManager getClaimManager() {
+
         return claimManager;
     }
 
     public CombatManager getCombatManager() {
+
         return combatManager;
     }
 
     public DeathbanManager getDeathbanManager() {
+
         return deathbanManager;
     }
 
     public EconomyManager getEconomyManager() {
+
         return economyManager;
     }
 
     public KitManager getKitManager() {
+
         return kitManager;
     }
 
     public ClassManager getClassManager() {
+
         return classManager;
     }
 
     public AirdropManager getAirdropManager() {
+
         return airdropManager;
     }
 
     public KothManager getKothManager() {
+
         return kothManager;
     }
 
     public ScoreboardManager getScoreboardManager() {
+
         return scoreboardManager;
     }
 
     public VillagerManager getVillagerManager() {
+
         return villagerManager;
     }
 
+    public TabListManager getTabListManager() {
+
+        return tabListManager;
+    }
+
     public GUIManager getGuiManager() {
+
         return guiManager;
     }
 }
