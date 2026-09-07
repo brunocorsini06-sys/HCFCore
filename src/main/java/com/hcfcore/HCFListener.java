@@ -4,6 +4,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -462,13 +463,41 @@ public class HCFListener implements Listener {
         Entity damager =
                 event.getDamager();
 
+        // -----------------------------------------------------
+        // PVP CUERPO A CUERPO
+        // -----------------------------------------------------
+
         if (damager instanceof Player) {
-            attacker = (Player) damager;
+
+            attacker =
+                    (Player) damager;
         }
 
+        // -----------------------------------------------------
+        // PVP CON PROYECTILES
+        // -----------------------------------------------------
+
+        else if (damager instanceof Projectile) {
+
+            Projectile projectile =
+                    (Projectile) damager;
+
+            if (projectile.getShooter()
+                    instanceof Player) {
+
+                attacker =
+                        (Player) projectile.getShooter();
+            }
+        }
+
+        // No fue un ataque de jugador.
         if (attacker == null) {
             return;
         }
+
+        // -----------------------------------------------------
+        // FRIENDLY FIRE
+        // -----------------------------------------------------
 
         Faction attackerFaction =
                 plugin.getFactionManager()
@@ -506,9 +535,17 @@ public class HCFListener implements Listener {
             }
         }
 
+        // -----------------------------------------------------
+        // SI EL EVENTO FUE CANCELADO
+        // -----------------------------------------------------
+
         if (event.isCancelled()) {
             return;
         }
+
+        // -----------------------------------------------------
+        // COMBAT TAG
+        // -----------------------------------------------------
 
         plugin.getCombatManager()
                 .tag(attacker);
@@ -580,7 +617,7 @@ public class HCFListener implements Listener {
                 if (newDtr <= 0.0
                         && oldDtr > 0.0) {
 
-                    BukkitBroadcastRaidable(faction);
+                    broadcastRaidable(faction);
                 }
             }
         }
@@ -648,7 +685,7 @@ public class HCFListener implements Listener {
     // RAIDABLE ANNOUNCEMENT
     // =========================================================
 
-    private void BukkitBroadcastRaidable(
+    private void broadcastRaidable(
             Faction faction
     ) {
 
