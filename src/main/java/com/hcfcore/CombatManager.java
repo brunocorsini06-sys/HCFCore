@@ -17,8 +17,14 @@ public class CombatManager {
         this.plugin = plugin;
     }
 
+    // =========================================================
+    // TAG
+    // =========================================================
+
     /**
      * Pone al jugador en combate.
+     *
+     * Si ya estaba en combate, el tiempo se reinicia.
      */
     public void tag(Player player) {
 
@@ -43,15 +49,23 @@ public class CombatManager {
             return;
         }
 
+        long expires =
+                System.currentTimeMillis()
+                        + (seconds * 1000L);
+
         combatTags.put(
                 player.getUniqueId(),
-                System.currentTimeMillis()
-                        + (seconds * 1000L)
+                expires
         );
     }
 
+    // =========================================================
+    // COMBAT CHECK
+    // =========================================================
+
     /**
-     * Comprueba si el jugador está en combate.
+     * Comprueba si el jugador está actualmente
+     * en combate.
      */
     public boolean isInCombat(Player player) {
 
@@ -59,27 +73,32 @@ public class CombatManager {
             return false;
         }
 
+        UUID uuid =
+                player.getUniqueId();
+
         Long expires =
-                combatTags.get(
-                        player.getUniqueId()
-                );
+                combatTags.get(uuid);
 
         if (expires == null) {
             return false;
         }
 
         if (System.currentTimeMillis() >= expires) {
-            combatTags.remove(
-                    player.getUniqueId()
-            );
+
+            combatTags.remove(uuid);
+
             return false;
         }
 
         return true;
     }
 
+    // =========================================================
+    // REMAINING TIME
+    // =========================================================
+
     /**
-     * Devuelve los segundos restantes.
+     * Devuelve los segundos restantes de Combat Tag.
      */
     public long getRemainingSeconds(Player player) {
 
@@ -87,14 +106,11 @@ public class CombatManager {
             return 0;
         }
 
-        if (!isInCombat(player)) {
-            return 0;
-        }
+        UUID uuid =
+                player.getUniqueId();
 
         Long expires =
-                combatTags.get(
-                        player.getUniqueId()
-                );
+                combatTags.get(uuid);
 
         if (expires == null) {
             return 0;
@@ -103,11 +119,22 @@ public class CombatManager {
         long remaining =
                 expires - System.currentTimeMillis();
 
+        if (remaining <= 0) {
+
+            combatTags.remove(uuid);
+
+            return 0;
+        }
+
         return Math.max(
                 0,
                 (remaining + 999) / 1000
         );
     }
+
+    // =========================================================
+    // REMOVE TAG
+    // =========================================================
 
     /**
      * Saca al jugador de combate.
@@ -122,6 +149,29 @@ public class CombatManager {
                 player.getUniqueId()
         );
     }
+
+    // =========================================================
+    // FORCE TAG
+    // =========================================================
+
+    /**
+     * Comprueba si el jugador está en combate
+     * y, si lo está, extiende el tag.
+     */
+    public void refreshTag(Player player) {
+
+        if (player == null) {
+            return;
+        }
+
+        if (isInCombat(player)) {
+            tag(player);
+        }
+    }
+
+    // =========================================================
+    // COMMAND BLOCK
+    // =========================================================
 
     /**
      * Comprueba si un comando está bloqueado
@@ -145,23 +195,38 @@ public class CombatManager {
                         .replace("/", "")
                         .trim();
 
-        /*
-         * Comandos bloqueados durante combate.
-         */
         return cmd.equals("spawn")
                 || cmd.equals("home")
                 || cmd.equals("f home")
+                || cmd.equals("fhome")
                 || cmd.equals("tpa")
                 || cmd.equals("tpaccept")
                 || cmd.equals("back")
                 || cmd.equals("warp")
                 || cmd.equals("rtp")
                 || cmd.equals("hub")
-                || cmd.equals("server");
+                || cmd.equals("server")
+                || cmd.equals("tp")
+                || cmd.equals("teleport");
     }
 
+    // =========================================================
+    // COMBAT LOGOUT
+    // =========================================================
+
     /**
-     * Castigo por desconectarse durante combate.
+     * Maneja la desconexión de un jugador
+     * durante Combat Tag.
+     *
+     * Si punish-logout está activo, el jugador
+     * recibe una muerte real para que el
+     * PlayerDeathEvent se encargue de:
+     *
+     * - DTR
+     * - Deathban
+     * - estadísticas
+     * - mensajes
+     * - etc.
      */
     public void handleQuit(Player player) {
 
@@ -171,8 +236,6 @@ public class CombatManager {
 
         boolean inCombat =
                 isInCombat(player);
-
-        removeTag(player);
 
         if (!inCombat) {
             return;
@@ -184,22 +247,52 @@ public class CombatManager {
                         true
                 );
 
+        removeTag(player);
+
         if (!punish) {
             return;
         }
 
-        /*
-         * El castigo de muerte se maneja
-         * desde HCFListener.
-         */
         plugin.getLogger().info(
-                player.getName()
+                "[CombatTag] "
+                        + player.getName()
                         + " se desconectó durante combate."
         );
+
+        /*
+         * Provocamos una muerte real.
+         *
+         * Esto dispara PlayerDeathEvent,
+         * donde HCFListener aplica:
+         *
+         * - pérdida de DTR
+         * - deathban
+         * - estadísticas
+         * - etc.
+         */
+        if (!player.isDead()) {
+
+            try {
+
+                player.setHealth(0.0);
+
+            } catch (IllegalArgumentException ignored) {
+
+                plugin.getLogger().warning(
+                        "No se pudo matar a "
+                                + player.getName()
+                                + " al desconectarse en combate."
+                );
+            }
+        }
     }
 
+    // =========================================================
+    // CLEANUP
+    // =========================================================
+
     /**
-     * Limpia combat tags expirados.
+     * Limpia Combat Tags expirados.
      */
     public void cleanup() {
 
@@ -211,6 +304,10 @@ public class CombatManager {
                         entry.getValue() <= now
         );
     }
+
+    // =========================================================
+    // CLEANUP TASK
+    // =========================================================
 
     /**
      * Inicia la limpieza automática.
@@ -227,12 +324,29 @@ public class CombatManager {
                 );
     }
 
+    // =========================================================
+    // COMBAT COUNT
+    // =========================================================
+
     /**
      * Devuelve la cantidad de jugadores
-     * actualmente marcados en combate.
+     * actualmente en Combat Tag.
      */
     public int getCombatCount() {
+
         cleanup();
+
         return combatTags.size();
+    }
+
+    // =========================================================
+    // CLEAR ALL
+    // =========================================================
+
+    /**
+     * Elimina todos los Combat Tags.
+     */
+    public void clearAll() {
+        combatTags.clear();
     }
 }
