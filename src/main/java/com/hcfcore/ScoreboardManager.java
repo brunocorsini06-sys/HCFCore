@@ -7,8 +7,8 @@ import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class ScoreboardManager {
 
@@ -34,10 +34,16 @@ public class ScoreboardManager {
 
     public void update(Player player) {
 
-        if (!plugin.getConfig().getBoolean(
+        if (player == null) {
+            return;
+        }
+
+        boolean enabled = plugin.getConfig().getBoolean(
                 "scoreboard.enabled",
                 true
-        )) {
+        );
+
+        if (!enabled) {
             player.setScoreboard(
                     Bukkit.getScoreboardManager()
                             .getMainScoreboard()
@@ -49,17 +55,18 @@ public class ScoreboardManager {
                 Bukkit.getScoreboardManager()
                         .getNewScoreboard();
 
+        String title =
+                plugin.getConfig()
+                        .getString(
+                                "scoreboard.title",
+                                "&6&lHCF"
+                        );
+
         Objective objective =
                 board.registerNewObjective(
                         "hcf",
                         "dummy",
-                        color(
-                                plugin.getConfig()
-                                        .getString(
-                                                "scoreboard.title",
-                                                "&6&lHCF"
-                                        )
-                        )
+                        color(title)
                 );
 
         objective.setDisplaySlot(
@@ -74,25 +81,24 @@ public class ScoreboardManager {
 
         int score = lines.size();
 
-        for (String line : lines) {
+        for (String configuredLine : lines) {
 
-            line = replace(
+            if (configuredLine == null) {
+                continue;
+            }
+
+            String line = replace(
                     player,
-                    line
+                    configuredLine
             );
 
             line = color(line);
 
             /*
-             * El scoreboard de Minecraft no permite
-             * líneas idénticas. Agregamos espacios
-             * invisibles cuando sea necesario.
+             * Evita líneas duplicadas.
              */
-
-            String uniqueLine = makeUnique(
-                    board,
-                    line
-            );
+            String uniqueLine =
+                    makeUnique(board, line);
 
             objective.getScore(uniqueLine)
                     .setScore(score);
@@ -138,6 +144,10 @@ public class ScoreboardManager {
                 plugin.getClaimManager()
                         .getClaimName(player);
 
+        if (claim == null || claim.isEmpty()) {
+            claim = "Wilderness";
+        }
+
         line = line.replace(
                 "%player%",
                 player.getName()
@@ -151,6 +161,7 @@ public class ScoreboardManager {
         line = line.replace(
                 "%dtr%",
                 String.format(
+                        Locale.US,
                         "%.2f",
                         dtr
                 )
@@ -159,6 +170,7 @@ public class ScoreboardManager {
         line = line.replace(
                 "%balance%",
                 String.format(
+                        Locale.US,
                         "%.2f",
                         balance
                 )
@@ -196,9 +208,11 @@ public class ScoreboardManager {
         return result;
     }
 
-    private String color(
-            String text
-    ) {
+    private String color(String text) {
+
+        if (text == null) {
+            return "";
+        }
 
         return ChatColor.translateAlternateColorCodes(
                 '&',
