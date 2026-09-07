@@ -16,10 +16,6 @@ public class DatabaseManager {
         this.plugin = plugin;
     }
 
-    // =========================================================
-    // CONECTAR
-    // =========================================================
-
     public boolean connect() {
 
         try {
@@ -65,10 +61,6 @@ public class DatabaseManager {
         }
     }
 
-    // =========================================================
-    // TABLAS
-    // =========================================================
-
     private void createTables() {
 
         if (connection == null) {
@@ -79,9 +71,9 @@ public class DatabaseManager {
                      connection.createStatement()) {
 
             /*
-             * ==============================
+             * =========================
              * FACTIONS
-             * ==============================
+             * =========================
              */
 
             statement.executeUpdate("""
@@ -93,12 +85,6 @@ public class DatabaseManager {
                     )
                     """);
 
-            /*
-             * ==============================
-             * FACTION MEMBERS
-             * ==============================
-             */
-
             statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS faction_members (
                         faction TEXT NOT NULL,
@@ -108,12 +94,6 @@ public class DatabaseManager {
                     )
                     """);
 
-            /*
-             * ==============================
-             * FACTION ALLIES
-             * ==============================
-             */
-
             statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS faction_allies (
                         faction TEXT NOT NULL,
@@ -121,12 +101,6 @@ public class DatabaseManager {
                         PRIMARY KEY (faction, target)
                     )
                     """);
-
-            /*
-             * ==============================
-             * FACTION ENEMIES
-             * ==============================
-             */
 
             statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS faction_enemies (
@@ -136,10 +110,22 @@ public class DatabaseManager {
                     )
                     """);
 
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS faction_homes (
+                        faction TEXT PRIMARY KEY,
+                        world TEXT NOT NULL,
+                        x REAL NOT NULL,
+                        y REAL NOT NULL,
+                        z REAL NOT NULL,
+                        yaw REAL NOT NULL,
+                        pitch REAL NOT NULL
+                    )
+                    """);
+
             /*
-             * ==============================
+             * =========================
              * CLAIMS
-             * ==============================
+             * =========================
              */
 
             statement.executeUpdate("""
@@ -153,9 +139,9 @@ public class DatabaseManager {
                     """);
 
             /*
-             * ==============================
+             * =========================
              * PLAYER STATS
-             * ==============================
+             * =========================
              */
 
             statement.executeUpdate("""
@@ -167,9 +153,9 @@ public class DatabaseManager {
                     """);
 
             /*
-             * ==============================
+             * =========================
              * DEATHBANS
-             * ==============================
+             * =========================
              */
 
             statement.executeUpdate("""
@@ -180,15 +166,28 @@ public class DatabaseManager {
                     """);
 
             /*
-             * ==============================
+             * =========================
              * LIVES
-             * ==============================
+             * =========================
              */
 
             statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS lives (
                         uuid TEXT PRIMARY KEY,
                         amount INTEGER NOT NULL DEFAULT 0
+                    )
+                    """);
+
+            /*
+             * =========================
+             * ECONOMY
+             * =========================
+             */
+
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS economy (
+                        uuid TEXT PRIMARY KEY,
+                        balance REAL NOT NULL DEFAULT 0
                     )
                     """);
 
@@ -206,10 +205,6 @@ public class DatabaseManager {
         }
     }
 
-    // =========================================================
-    // CONNECTION
-    // =========================================================
-
     public Connection getConnection() {
         return connection;
     }
@@ -226,10 +221,6 @@ public class DatabaseManager {
             return false;
         }
     }
-
-    // =========================================================
-    // CERRAR
-    // =========================================================
 
     public void disconnect() {
 
