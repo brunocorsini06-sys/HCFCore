@@ -152,6 +152,10 @@ public class ClassManager {
      */
     private void removeEffects(Player player) {
 
+        if (player == null) {
+            return;
+        }
+
         player.removePotionEffect(
                 PotionEffectType.SPEED
         );
@@ -211,32 +215,56 @@ public class ClassManager {
                 continue;
             }
 
+            /*
+             * En Paper 1.20.4:
+             * STRENGTH -> INCREASE_DAMAGE
+             */
             if (strength > 0) {
 
-                target.addPotionEffect(
-                        new PotionEffect(
-                                PotionEffectType.STRENGTH,
-                                40,
-                                strength - 1,
-                                false,
-                                false,
-                                true
-                        )
-                );
+                PotionEffectType strengthType =
+                        PotionEffectType.getByName(
+                                "INCREASE_DAMAGE"
+                        );
+
+                if (strengthType != null) {
+
+                    target.addPotionEffect(
+                            new PotionEffect(
+                                    strengthType,
+                                    40,
+                                    strength - 1,
+                                    false,
+                                    false,
+                                    true
+                            )
+                    );
+                }
             }
 
+            /*
+             * En Paper 1.20.4:
+             * RESISTANCE -> DAMAGE_RESISTANCE
+             */
             if (resistance > 0) {
 
-                target.addPotionEffect(
-                        new PotionEffect(
-                                PotionEffectType.RESISTANCE,
-                                40,
-                                resistance - 1,
-                                false,
-                                false,
-                                true
-                        )
-                );
+                PotionEffectType resistanceType =
+                        PotionEffectType.getByName(
+                                "DAMAGE_RESISTANCE"
+                        );
+
+                if (resistanceType != null) {
+
+                    target.addPotionEffect(
+                            new PotionEffect(
+                                    resistanceType,
+                                    40,
+                                    resistance - 1,
+                                    false,
+                                    false,
+                                    true
+                            )
+                    );
+                }
             }
         }
     }
