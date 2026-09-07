@@ -4,6 +4,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
+import java.util.List;
+
 public class TabListManager {
 
     private final HCFCore plugin;
@@ -25,6 +27,13 @@ public class TabListManager {
 
     public void updateAll() {
 
+        if (!plugin.getConfig().getBoolean(
+                "tablist.enabled",
+                true
+        )) {
+            return;
+        }
+
         for (Player player :
                 Bukkit.getOnlinePlayers()) {
 
@@ -38,30 +47,32 @@ public class TabListManager {
             return;
         }
 
+        if (!plugin.getConfig().getBoolean(
+                "tablist.enabled",
+                true
+        )) {
+            player.setPlayerListHeaderFooter(
+                    "",
+                    ""
+            );
+
+            player.setPlayerListName(
+                    player.getName()
+            );
+
+            return;
+        }
+
         String header =
-                plugin.getConfig()
-                        .getString(
-                                "tablist.header",
-                                "&6&lHCFCore"
-                        );
-
-        String footer =
-                plugin.getConfig()
-                        .getString(
-                                "tablist.footer",
-                                "&7Online: &f%online%"
-                        );
-
-        header =
-                replace(
-                        player,
-                        header
+                buildLines(
+                        "tablist.header",
+                        player
                 );
 
-        footer =
-                replace(
-                        player,
-                        footer
+        String footer =
+                buildLines(
+                        "tablist.footer",
+                        player
                 );
 
         player.setPlayerListHeaderFooter(
@@ -95,8 +106,14 @@ public class TabListManager {
                 plugin.getConfig()
                         .getString(
                                 "tablist.player-format",
-                                "%combat% &f%player% &7[%faction%]"
+                                "%combat% &f%player% &7[%faction%] &8| &a%ping%ms"
                         );
+
+        format =
+                replace(
+                        player,
+                        format
+                );
 
         format =
                 format.replace(
@@ -106,27 +123,52 @@ public class TabListManager {
 
         format =
                 format.replace(
-                        "%player%",
-                        player.getName()
-                );
-
-        format =
-                format.replace(
                         "%faction%",
                         factionName
-                );
-
-        format =
-                format.replace(
-                        "%ping%",
-                        String.valueOf(
-                                getPing(player)
-                        )
                 );
 
         player.setPlayerListName(
                 color(format)
         );
+    }
+
+    private String buildLines(
+            String path,
+            Player player
+    ) {
+
+        List<String> lines =
+                plugin.getConfig()
+                        .getStringList(path);
+
+        if (lines.isEmpty()) {
+            return "";
+        }
+
+        StringBuilder builder =
+                new StringBuilder();
+
+        for (int i = 0;
+             i < lines.size();
+             i++) {
+
+            String line =
+                    lines.get(i);
+
+            line =
+                    replace(
+                            player,
+                            line
+                    );
+
+            builder.append(line);
+
+            if (i < lines.size() - 1) {
+                builder.append("\n");
+            }
+        }
+
+        return builder.toString();
     }
 
     private String replace(
