@@ -1,13 +1,10 @@
 package com.hcfcore;
 
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-
-import java.util.Locale;
 
 public class Commands implements CommandExecutor {
 
@@ -25,125 +22,97 @@ public class Commands implements CommandExecutor {
             String[] args
     ) {
 
-        String cmd =
-                command.getName().toLowerCase(Locale.ROOT);
+        String cmd = command.getName().toLowerCase();
 
         switch (cmd) {
 
             case "hcf":
-                return hcfCommand(sender, args);
+                return hcf(sender, args);
 
             case "airdrop":
-                return airdropCommand(sender, args);
-
-            case "kit":
-                return kitCommand(sender, args);
+                return airdrop(sender, args);
 
             case "koth":
-                return kothCommand(sender, args);
-
-            case "claim":
-                return claimCommand(sender, args);
-
-            case "combat":
-                return combatCommand(sender, args);
+                return koth(sender, args);
 
             case "pay":
-                return payCommand(sender, args);
-
-            case "balance":
-                return balanceCommand(sender);
+                return pay(sender, args);
 
             case "lives":
-                return livesCommand(sender, args);
-
-            case "deathban":
-                return deathbanCommand(sender, args);
+                return lives(sender, args);
 
             case "class":
                 return classCommand(sender, args);
 
             case "spawn":
-                return spawnCommand(sender);
+                return spawn(sender);
+
+            case "balance":
+                return balance(sender);
 
             case "f":
-                return factionCommand(sender, args);
+            case "faction":
+            case "fac":
+                return faction(sender, args);
 
             default:
                 return false;
         }
     }
 
-    /*
-     * =========================
-     * HCF
-     * =========================
-     */
+    // =========================================================
+    // HCF
+    // =========================================================
 
-    private boolean hcfCommand(
+    private boolean hcf(
             CommandSender sender,
             String[] args
     ) {
 
-        if (!isPlayer(sender)) {
-
+        if (!sender.hasPermission("hcf.admin")) {
             sender.sendMessage(
-                    ChatColor.RED +
-                            "Este comando requiere un jugador."
-            );
-
-            return true;
-        }
-
-        Player player = (Player) sender;
-
-        if (!hasAdmin(player)) {
-
-            player.sendMessage(
                     ChatColor.RED +
                             "No tienes permiso."
             );
-
             return true;
         }
 
         if (args.length == 0) {
 
-            player.sendMessage(
+            sender.sendMessage(
                     ChatColor.GOLD +
                             "━━━━━━━━━━━━━━━━━━━━"
             );
 
-            player.sendMessage(
-                    ChatColor.GOLD +
+            sender.sendMessage(
+                    ChatColor.YELLOW +
                             "HCFCore"
             );
 
-            player.sendMessage(
-                    ChatColor.GRAY +
-                            "/hcf editor"
-            );
-
-            player.sendMessage(
+            sender.sendMessage(
                     ChatColor.GRAY +
                             "/hcf reload"
             );
 
-            player.sendMessage(
+            sender.sendMessage(
+                    ChatColor.GRAY +
+                            "/airdrop spawn"
+            );
+
+            sender.sendMessage(
+                    ChatColor.GRAY +
+                            "/koth start"
+            );
+
+            sender.sendMessage(
+                    ChatColor.GRAY +
+                            "/koth stop"
+            );
+
+            sender.sendMessage(
                     ChatColor.GOLD +
                             "━━━━━━━━━━━━━━━━━━━━"
             );
-
-            return true;
-        }
-
-        if (args[0].equalsIgnoreCase("editor")) {
-
-            if (plugin.getGuiManager() != null) {
-
-                plugin.getGuiManager()
-                        .openMain(player);
-            }
 
             return true;
         }
@@ -152,94 +121,53 @@ public class Commands implements CommandExecutor {
 
             plugin.reloadConfig();
 
-            player.sendMessage(
+            sender.sendMessage(
                     ChatColor.GREEN +
-                            "✓ Configuración recargada."
+                            "Configuración recargada."
             );
 
             return true;
         }
-
-        player.sendMessage(
-                ChatColor.RED +
-                        "Subcomando desconocido."
-        );
 
         return true;
     }
 
-    /*
-     * =========================
-     * AIRDROP
-     * =========================
-     */
+    // =========================================================
+    // AIRDROP
+    // =========================================================
 
-    private boolean airdropCommand(
+    private boolean airdrop(
             CommandSender sender,
             String[] args
     ) {
 
-        if (!isPlayer(sender)) {
-            return true;
-        }
-
-        Player player = (Player) sender;
-
-        if (args.length == 0) {
-
-            player.sendMessage(
-                    ChatColor.GOLD +
-                            "/airdrop edit"
-            );
-
-            player.sendMessage(
-                    ChatColor.GOLD +
-                            "/airdrop spawn"
-            );
-
-            player.sendMessage(
-                    ChatColor.GOLD +
-                            "/airdrop remove"
-            );
-
-            return true;
-        }
-
-        if (!hasAdmin(player)) {
-
-            player.sendMessage(
+        if (!sender.hasPermission("hcf.admin")) {
+            sender.sendMessage(
                     ChatColor.RED +
                             "No tienes permiso."
             );
-
             return true;
         }
 
-        if (args[0].equalsIgnoreCase("edit")) {
+        if (args.length == 0) {
 
-            plugin.getGuiManager()
-                    .openAirdrop(player);
+            sender.sendMessage(
+                    ChatColor.YELLOW +
+                            "/airdrop spawn"
+            );
 
             return true;
         }
 
         if (args[0].equalsIgnoreCase("spawn")) {
 
-            if (plugin.getAirdropManager()
-                    .spawnAirdrop()) {
+            plugin.getAirdropManager()
+                    .spawnAirdrop();
 
-                player.sendMessage(
-                        ChatColor.GREEN +
-                                "✓ Airdrop creado."
-                );
-
-            } else {
-
-                player.sendMessage(
-                        ChatColor.RED +
-                                "No se pudo crear el airdrop."
-                );
-            }
+            sender.sendMessage(
+                    ChatColor.GREEN +
+                            "Airdrop generado."
+            );
 
             return true;
         }
@@ -249,197 +177,71 @@ public class Commands implements CommandExecutor {
             plugin.getAirdropManager()
                     .removeActiveDrop();
 
-            player.sendMessage(
-                    ChatColor.YELLOW +
-                            "✓ Airdrop eliminado."
+            sender.sendMessage(
+                    ChatColor.RED +
+                            "Airdrop eliminado."
             );
 
             return true;
         }
-
-        player.sendMessage(
-                ChatColor.RED +
-                        "Uso: /airdrop <edit|spawn|remove>"
-        );
 
         return true;
     }
 
-    /*
-     * =========================
-     * KIT
-     * =========================
-     */
+    // =========================================================
+    // KOTH
+    // =========================================================
 
-    private boolean kitCommand(
+    private boolean koth(
             CommandSender sender,
             String[] args
     ) {
 
-        if (!isPlayer(sender)) {
+        if (!sender.hasPermission("hcf.admin")) {
+            sender.sendMessage(
+                    ChatColor.RED +
+                            "No tienes permiso."
+            );
             return true;
         }
-
-        Player player = (Player) sender;
 
         if (args.length == 0) {
 
-            player.sendMessage(
+            sender.sendMessage(
                     ChatColor.YELLOW +
-                            "/kit <nombre>"
-            );
-
-            player.sendMessage(
-                    ChatColor.YELLOW +
-                            "/kit edit"
-            );
-
-            return true;
-        }
-
-        if (args[0].equalsIgnoreCase("edit")) {
-
-            if (!hasAdmin(player)) {
-
-                player.sendMessage(
-                        ChatColor.RED +
-                                "No tienes permiso."
-                );
-
-                return true;
-            }
-
-            plugin.getGuiManager()
-                    .openKit(player);
-
-            return true;
-        }
-
-        String kit =
-                args[0].toLowerCase(Locale.ROOT);
-
-        if (!plugin.getKitManager()
-                .kitExists(kit)) {
-
-            player.sendMessage(
-                    ChatColor.RED +
-                            "Ese kit no existe."
-            );
-
-            return true;
-        }
-
-        if (!plugin.getKitManager()
-                .giveKit(player, kit)) {
-
-            long remaining =
-                    plugin.getKitManager()
-                            .getRemainingSeconds(
-                                    player,
-                                    kit
-                            );
-
-            player.sendMessage(
-                    ChatColor.RED +
-                            "No puedes usar este kit todavía."
-            );
-
-            player.sendMessage(
-                    ChatColor.GRAY +
-                            "Tiempo restante: "
-                            + formatTime(remaining)
-            );
-
-            return true;
-        }
-
-        player.sendMessage(
-                ChatColor.GREEN +
-                        "✓ Kit recibido."
-        );
-
-        return true;
-    }
-
-    /*
-     * =========================
-     * KOTH
-     * =========================
-     */
-
-    private boolean kothCommand(
-            CommandSender sender,
-            String[] args
-    ) {
-
-        if (!isPlayer(sender)) {
-            return true;
-        }
-
-        Player player = (Player) sender;
-
-        if (args.length == 0) {
-
-            player.sendMessage(
-                    ChatColor.GOLD +
-                            "/koth edit"
-            );
-
-            player.sendMessage(
-                    ChatColor.GOLD +
                             "/koth start"
             );
 
-            player.sendMessage(
-                    ChatColor.GOLD +
+            sender.sendMessage(
+                    ChatColor.YELLOW +
                             "/koth stop"
             );
 
             return true;
         }
 
-        if (!hasAdmin(player)) {
-
-            player.sendMessage(
-                    ChatColor.RED +
-                            "No tienes permiso."
-            );
-
-            return true;
-        }
-
-        if (args[0].equalsIgnoreCase("edit")) {
-
-            plugin.getGuiManager()
-                    .openKoth(player);
-
-            return true;
-        }
-
         if (args[0].equalsIgnoreCase("start")) {
 
-            if (plugin.getKothManager()
-                    .isActive()) {
+            if (plugin.getKothManager().isActive()) {
 
-                player.sendMessage(
-                        ChatColor.YELLOW +
+                sender.sendMessage(
+                        ChatColor.RED +
                                 "El KOTH ya está activo."
                 );
 
                 return true;
             }
 
-            if (plugin.getKothManager()
-                    .getLocation() == null) {
+            if (plugin.getKothManager().getLocation() == null) {
 
-                player.sendMessage(
+                sender.sendMessage(
                         ChatColor.RED +
-                                "No hay ubicación configurada."
+                                "El KOTH no tiene una ubicación configurada."
                 );
 
-                player.sendMessage(
+                sender.sendMessage(
                         ChatColor.GRAY +
-                                "Usa /koth edit"
+                                "Usa el editor para establecerla."
                 );
 
                 return true;
@@ -448,32 +250,20 @@ public class Commands implements CommandExecutor {
             plugin.getKothManager()
                     .startKoth();
 
-            if (plugin.getKothManager()
-                    .isActive()) {
-
-                player.sendMessage(
-                        ChatColor.GREEN +
-                                "✓ KOTH iniciado."
-                );
-
-            } else {
-
-                player.sendMessage(
-                        ChatColor.RED +
-                                "No se pudo iniciar el KOTH."
-                );
-            }
+            sender.sendMessage(
+                    ChatColor.GREEN +
+                            "KOTH iniciado."
+            );
 
             return true;
         }
 
         if (args[0].equalsIgnoreCase("stop")) {
 
-            if (!plugin.getKothManager()
-                    .isActive()) {
+            if (!plugin.getKothManager().isActive()) {
 
-                player.sendMessage(
-                        ChatColor.YELLOW +
+                sender.sendMessage(
+                        ChatColor.RED +
                                 "El KOTH no está activo."
                 );
 
@@ -483,137 +273,38 @@ public class Commands implements CommandExecutor {
             plugin.getKothManager()
                     .stopKoth();
 
-            player.sendMessage(
+            sender.sendMessage(
                     ChatColor.YELLOW +
-                            "✓ KOTH detenido."
+                            "KOTH detenido."
             );
 
             return true;
         }
-
-        player.sendMessage(
-                ChatColor.RED +
-                        "Uso: /koth <edit|start|stop>"
-        );
 
         return true;
     }
 
-    /*
-     * =========================
-     * CLAIM
-     * =========================
-     */
+    // =========================================================
+    // PAY
+    // =========================================================
 
-    private boolean claimCommand(
+    private boolean pay(
             CommandSender sender,
             String[] args
     ) {
 
-        if (!isPlayer(sender)) {
-            return true;
-        }
+        if (!(sender instanceof Player)) {
 
-        Player player = (Player) sender;
-
-        if (args.length > 0
-                && args[0].equalsIgnoreCase("unclaim")) {
-
-            if (plugin.getClaimManager()
-                    .unclaim(player)) {
-
-                player.sendMessage(
-                        ChatColor.GREEN +
-                                "✓ Chunk desprotegido."
-                );
-
-            } else {
-
-                player.sendMessage(
-                        ChatColor.RED +
-                                "No puedes desproteger este chunk."
-                );
-            }
-
-            return true;
-        }
-
-        if (plugin.getClaimManager()
-                .claim(player)) {
-
-            player.sendMessage(
-                    ChatColor.GREEN +
-                            "✓ Chunk protegido."
-            );
-
-        } else {
-
-            player.sendMessage(
+            sender.sendMessage(
                     ChatColor.RED +
-                            "No puedes reclamar este chunk."
+                            "Este comando solo puede usarlo un jugador."
             );
-        }
 
-        return true;
-    }
-
-    /*
-     * =========================
-     * COMBAT
-     * =========================
-     */
-
-    private boolean combatCommand(
-            CommandSender sender,
-            String[] args
-    ) {
-
-        if (!isPlayer(sender)) {
             return true;
         }
 
-        Player player = (Player) sender;
-
-        long remaining =
-                plugin.getCombatManager()
-                        .getRemainingSeconds(player);
-
-        if (remaining > 0) {
-
-            player.sendMessage(
-                    ChatColor.RED +
-                            "⚔ Estás en combate: "
-                            + remaining
-                            + "s"
-            );
-
-        } else {
-
-            player.sendMessage(
-                    ChatColor.GREEN +
-                            "✓ No estás en combate."
-            );
-        }
-
-        return true;
-    }
-
-    /*
-     * =========================
-     * ECONOMÍA
-     * =========================
-     */
-
-    private boolean payCommand(
-            CommandSender sender,
-            String[] args
-    ) {
-
-        if (!isPlayer(sender)) {
-            return true;
-        }
-
-        Player player = (Player) sender;
+        Player player =
+                (Player) sender;
 
         if (args.length < 2) {
 
@@ -626,13 +317,14 @@ public class Commands implements CommandExecutor {
         }
 
         Player target =
-                Bukkit.getPlayer(args[0]);
+                plugin.getServer()
+                        .getPlayerExact(args[0]);
 
         if (target == null) {
 
             player.sendMessage(
                     ChatColor.RED +
-                            "Jugador no encontrado."
+                            "Ese jugador no está conectado."
             );
 
             return true;
@@ -679,12 +371,11 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        if (!plugin.getEconomyManager()
-                .transfer(
-                        player,
-                        target,
-                        amount
-                )) {
+        double balance =
+                plugin.getEconomyManager()
+                        .getBalance(player);
+
+        if (balance < amount) {
 
             player.sendMessage(
                     ChatColor.RED +
@@ -694,80 +385,46 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
+        plugin.getEconomyManager()
+                .transfer(
+                        player,
+                        target,
+                        amount
+                );
+
         player.sendMessage(
                 ChatColor.GREEN +
-                        "✓ Enviaste $"
-                        + amount
-                        + " a "
-                        + target.getName()
+                        "Enviaste $" +
+                        formatMoney(amount) +
+                        " a " +
+                        target.getName() +
+                        "."
         );
 
         target.sendMessage(
                 ChatColor.GREEN +
-                        "✓ Recibiste $"
-                        + amount
-                        + " de "
-                        + player.getName()
+                        "Recibiste $" +
+                        formatMoney(amount) +
+                        " de " +
+                        player.getName() +
+                        "."
         );
 
         return true;
     }
 
-    private boolean balanceCommand(
-            CommandSender sender
-    ) {
+    // =========================================================
+    // LIVES
+    // =========================================================
 
-        if (!isPlayer(sender)) {
-            return true;
-        }
-
-        Player player = (Player) sender;
-
-        double balance =
-                plugin.getEconomyManager()
-                        .getBalance(player);
-
-        player.sendMessage(
-                ChatColor.GREEN +
-                        "💰 Balance: $"
-                        + balance
-        );
-
-        return true;
-    }
-
-    /*
-     * =========================
-     * LIVES
-     * =========================
-     */
-
-    private boolean livesCommand(
+    private boolean lives(
             CommandSender sender,
             String[] args
     ) {
 
-        if (!isPlayer(sender)) {
-            return true;
-        }
+        if (!sender.hasPermission("hcf.admin")) {
 
-        Player player = (Player) sender;
-
-        if (args.length == 0) {
-
-            player.sendMessage(
-                    ChatColor.YELLOW +
-                            "❤ Vidas: "
-                            + plugin.getDeathbanManager()
-                            .getLives(player)
-            );
-
-            return true;
-        }
-
-        if (!hasAdmin(player)) {
-
-            player.sendMessage(
+            sender.sendMessage(
                     ChatColor.RED +
                             "No tienes permiso."
             );
@@ -775,44 +432,52 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        Player target =
-                Bukkit.getPlayer(args[0]);
+        if (args.length < 2) {
 
-        if (target == null) {
-
-            player.sendMessage(
-                    ChatColor.RED +
-                            "Jugador no encontrado."
+            sender.sendMessage(
+                    ChatColor.YELLOW +
+                            "/lives <jugador> <cantidad>"
             );
 
             return true;
         }
 
-        int amount = 1;
+        Player target =
+                plugin.getServer()
+                        .getPlayerExact(args[0]);
 
-        if (args.length >= 2) {
+        if (target == null) {
 
-            try {
+            sender.sendMessage(
+                    ChatColor.RED +
+                            "Ese jugador no está conectado."
+            );
 
-                amount =
-                        Integer.parseInt(
-                                args[1]
-                        );
+            return true;
+        }
 
-            } catch (NumberFormatException e) {
+        int amount;
 
-                player.sendMessage(
-                        ChatColor.RED +
-                                "Cantidad inválida."
-                );
+        try {
 
-                return true;
-            }
+            amount =
+                    Integer.parseInt(
+                            args[1]
+                    );
+
+        } catch (NumberFormatException e) {
+
+            sender.sendMessage(
+                    ChatColor.RED +
+                            "Cantidad inválida."
+            );
+
+            return true;
         }
 
         if (amount <= 0) {
 
-            player.sendMessage(
+            sender.sendMessage(
                     ChatColor.RED +
                             "La cantidad debe ser mayor que 0."
             );
@@ -826,407 +491,257 @@ public class Commands implements CommandExecutor {
                         amount
                 );
 
-        player.sendMessage(
+        sender.sendMessage(
                 ChatColor.GREEN +
-                        "✓ Agregaste "
-                        + amount
-                        + " vida(s) a "
-                        + target.getName()
+                        "Se agregaron " +
+                        amount +
+                        " vidas a " +
+                        target.getName() +
+                        "."
         );
 
         return true;
     }
 
-    /*
-     * =========================
-     * DEATHBAN
-     * =========================
-     */
-
-    private boolean deathbanCommand(
-            CommandSender sender,
-            String[] args
-    ) {
-
-        if (!isPlayer(sender)) {
-            return true;
-        }
-
-        Player player = (Player) sender;
-
-        if (args.length == 0) {
-
-            long remaining =
-                    plugin.getDeathbanManager()
-                            .getRemainingSeconds(
-                                    player
-                            );
-
-            if (remaining == -1) {
-
-                player.sendMessage(
-                        ChatColor.RED +
-                                "☠ Deathban permanente."
-                );
-
-            } else if (remaining > 0) {
-
-                player.sendMessage(
-                        ChatColor.RED +
-                                "☠ Deathban: "
-                                + formatTime(
-                                        remaining
-                                )
-                );
-
-            } else {
-
-                player.sendMessage(
-                        ChatColor.GREEN +
-                                "✓ No estás deathbaneado."
-                );
-            }
-
-            return true;
-        }
-
-        if (!hasAdmin(player)) {
-
-            player.sendMessage(
-                    ChatColor.RED +
-                            "No tienes permiso."
-            );
-
-            return true;
-        }
-
-        Player target =
-                Bukkit.getPlayer(args[0]);
-
-        if (target == null) {
-
-            player.sendMessage(
-                    ChatColor.RED +
-                            "Jugador no encontrado."
-            );
-
-            return true;
-        }
-
-        if (args.length >= 2
-                && args[1].equalsIgnoreCase("revive")) {
-
-            plugin.getDeathbanManager()
-                    .revive(target);
-
-            player.sendMessage(
-                    ChatColor.GREEN +
-                            "✓ Jugador revivido."
-            );
-
-            return true;
-        }
-
-        plugin.getDeathbanManager()
-                .deathban(target);
-
-        player.sendMessage(
-                ChatColor.GREEN +
-                        "✓ Deathban aplicado."
-        );
-
-        return true;
-    }
-
-    /*
-     * =========================
-     * CLASES
-     * =========================
-     */
+    // =========================================================
+    // CLASS
+    // =========================================================
 
     private boolean classCommand(
             CommandSender sender,
             String[] args
     ) {
 
-        if (!isPlayer(sender)) {
+        if (!(sender instanceof Player)) {
+
+            sender.sendMessage(
+                    ChatColor.RED +
+                            "Solo jugadores."
+            );
+
             return true;
         }
 
-        Player player = (Player) sender;
+        Player player =
+                (Player) sender;
 
         if (args.length == 0) {
 
-            String current =
-                    plugin.getClassManager()
-                            .getClass(player);
-
             player.sendMessage(
                     ChatColor.YELLOW +
-                            "Clase actual: "
-                            + (current == null
-                            ? "ninguna"
-                            : current)
-            );
-
-            player.sendMessage(
-                    ChatColor.GRAY +
                             "/class archer"
             );
 
             player.sendMessage(
-                    ChatColor.GRAY +
+                    ChatColor.YELLOW +
                             "/class bard"
             );
 
             return true;
         }
 
-        String className =
-                args[0].toLowerCase(Locale.ROOT);
+        String selected =
+                args[0].toLowerCase();
 
-        if (!className.equals("archer")
-                && !className.equals("bard")) {
+        if (!selected.equals("archer")
+                && !selected.equals("bard")) {
 
             player.sendMessage(
                     ChatColor.RED +
                             "Clase inválida."
             );
 
-            player.sendMessage(
-                    ChatColor.GRAY +
-                            "Clases disponibles: archer, bard"
-            );
-
             return true;
         }
 
-        if (!plugin.getClassManager()
+        plugin.getClassManager()
                 .setClass(
                         player,
-                        className
-                )) {
-
-            player.sendMessage(
-                    ChatColor.RED +
-                            "No se pudo seleccionar la clase."
-            );
-
-            return true;
-        }
+                        selected
+                );
 
         player.sendMessage(
                 ChatColor.GREEN +
-                        "✓ Clase seleccionada: "
-                        + className
+                        "Elegiste la clase " +
+                        selected +
+                        "."
         );
 
         return true;
     }
 
-    /*
-     * =========================
-     * SPAWN
-     * =========================
-     */
+    // =========================================================
+    // SPAWN
+    // =========================================================
 
-    private boolean spawnCommand(
+    private boolean spawn(
             CommandSender sender
     ) {
 
-        if (!isPlayer(sender)) {
+        if (!(sender instanceof Player)) {
+
+            sender.sendMessage(
+                    ChatColor.RED +
+                            "Solo jugadores."
+            );
+
             return true;
         }
 
-        Player player = (Player) sender;
+        Player player =
+                (Player) sender;
 
         player.teleport(
-                player.getWorld()
+                plugin.getServer()
+                        .getWorld(
+                                plugin.getConfig()
+                                        .getString(
+                                                "world.name",
+                                                "world"
+                                        )
+                        )
                         .getSpawnLocation()
         );
 
         player.sendMessage(
                 ChatColor.GREEN +
-                        "✓ Teletransportado al spawn."
+                        "Teletransportado al spawn."
         );
 
         return true;
     }
 
-    /*
-     * =========================
-     * FACTIONS
-     * =========================
-     */
+    // =========================================================
+    // BALANCE
+    // =========================================================
 
-    private boolean factionCommand(
-            CommandSender sender,
-            String[] args
+    private boolean balance(
+            CommandSender sender
     ) {
 
-        if (!isPlayer(sender)) {
-            return true;
-        }
+        if (!(sender instanceof Player)) {
 
-        Player player = (Player) sender;
-
-        if (args.length == 0) {
-
-            Faction faction =
-                    plugin.getFactionManager()
-                            .getFaction(player);
-
-            if (faction == null) {
-
-                player.sendMessage(
-                        ChatColor.YELLOW +
-                                "No perteneces a una faction."
-                );
-
-            } else {
-
-                player.sendMessage(
-                        ChatColor.GREEN +
-                                "Faction: "
-                                + faction.getName()
-                );
-
-                player.sendMessage(
-                        ChatColor.GRAY +
-                                "DTR: "
-                                + faction.getDtr()
-                );
-
-                player.sendMessage(
-                        ChatColor.GRAY +
-                                "Kills: "
-                                + plugin.getFactionManager()
-                                .getKills(player)
-                );
-
-                player.sendMessage(
-                        ChatColor.GRAY +
-                                "Deaths: "
-                                + plugin.getFactionManager()
-                                .getDeaths(player)
-                );
-            }
-
-            return true;
-        }
-
-        if (args[0].equalsIgnoreCase("create")
-                && args.length >= 2) {
-
-            Faction faction =
-                    plugin.getFactionManager()
-                            .createFaction(
-                                    player,
-                                    args[1]
-                            );
-
-            if (faction == null) {
-
-                player.sendMessage(
-                        ChatColor.RED +
-                                "No se pudo crear la faction."
-                );
-
-            } else {
-
-                player.sendMessage(
-                        ChatColor.GREEN +
-                                "✓ Faction creada: "
-                                + faction.getName()
-                );
-            }
-
-            return true;
-        }
-
-        if (args[0].equalsIgnoreCase("leave")) {
-
-            plugin.getFactionManager()
-                    .leaveFaction(player);
-
-            player.sendMessage(
-                    ChatColor.YELLOW +
-                            "Has salido de la faction."
+            sender.sendMessage(
+                    ChatColor.RED +
+                            "Solo jugadores."
             );
 
             return true;
         }
 
+        Player player =
+                (Player) sender;
+
+        double balance =
+                plugin.getEconomyManager()
+                        .getBalance(player);
+
         player.sendMessage(
-                ChatColor.RED +
-                        "Subcomando desconocido."
+                ChatColor.GREEN +
+                        "Balance: $" +
+                        formatMoney(balance)
         );
 
         return true;
     }
 
-    /*
-     * =========================
-     * UTILIDADES
-     * =========================
-     */
+    // =========================================================
+    // FACTION
+    // =========================================================
 
-    private boolean isPlayer(
-            CommandSender sender
+    private boolean faction(
+            CommandSender sender,
+            String[] args
     ) {
 
-        return sender instanceof Player;
+        if (!(sender instanceof Player)) {
+
+            sender.sendMessage(
+                    ChatColor.RED +
+                            "Solo jugadores."
+            );
+
+            return true;
+        }
+
+        Player player =
+                (Player) sender;
+
+        Faction faction =
+                plugin.getFactionManager()
+                        .getFaction(player);
+
+        if (args.length == 0) {
+
+            if (faction == null) {
+
+                player.sendMessage(
+                        ChatColor.YELLOW +
+                                "No perteneces a ninguna faction."
+                );
+
+                player.sendMessage(
+                        ChatColor.GRAY +
+                                "/f create <nombre>"
+                );
+
+                return true;
+            }
+
+            player.sendMessage(
+                    ChatColor.GOLD +
+                            "━━━━━━━━━━━━━━━━━━━━"
+            );
+
+            player.sendMessage(
+                    ChatColor.YELLOW +
+                            "Faction: " +
+                            faction.getName()
+            );
+
+            player.sendMessage(
+                    ChatColor.RED +
+                            "DTR: " +
+                            faction.getDtr()
+            );
+
+            player.sendMessage(
+                    ChatColor.GREEN +
+                            "Kills: " +
+                            plugin.getFactionManager()
+                                    .getKills(player)
+            );
+
+            player.sendMessage(
+                    ChatColor.RED +
+                            "Deaths: " +
+                            plugin.getFactionManager()
+                                    .getDeaths(player)
+            );
+
+            player.sendMessage(
+                    ChatColor.GOLD +
+                            "━━━━━━━━━━━━━━━━━━━━"
+            );
+
+            return true;
+        }
+
+        return true;
     }
 
-    private boolean hasAdmin(
-            Player player
+    // =========================================================
+    // UTIL
+    // =========================================================
+
+    private String formatMoney(
+            double amount
     ) {
 
-        return player != null
-                && player.hasPermission(
-                "hcf.admin"
+        return String.format(
+                java.util.Locale.US,
+                "%.2f",
+                amount
         );
-    }
-
-    private String formatTime(
-            long seconds
-    ) {
-
-        if (seconds <= 0) {
-            return "0s";
-        }
-
-        long days =
-                seconds / 86400;
-
-        seconds %= 86400;
-
-        long hours =
-                seconds / 3600;
-
-        seconds %= 3600;
-
-        long minutes =
-                seconds / 60;
-
-        long secs =
-                seconds % 60;
-
-        if (days > 0) {
-            return days + "d "
-                    + hours + "h";
-        }
-
-        if (hours > 0) {
-            return hours + "h "
-                    + minutes + "m";
-        }
-
-        if (minutes > 0) {
-            return minutes + "m "
-                    + secs + "s";
-        }
-
-        return secs + "s";
     }
 }
