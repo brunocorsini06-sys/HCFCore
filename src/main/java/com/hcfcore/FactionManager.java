@@ -59,6 +59,13 @@ public class FactionManager {
                 1.0
         );
 
+        double maxDtr = getMaxDtr();
+
+        startingDtr = Math.max(
+                0.0,
+                Math.min(startingDtr, maxDtr)
+        );
+
         Faction faction = new Faction(
                 name,
                 player.getUniqueId(),
@@ -115,9 +122,6 @@ public class FactionManager {
             playerFactions.remove(uuid);
         }
 
-        /*
-         * Eliminamos claims de la faction.
-         */
         plugin.getClaimManager()
                 .removeFactionClaims(faction);
 
@@ -125,9 +129,6 @@ public class FactionManager {
 
         lastDtrRegeneration.remove(key);
 
-        /*
-         * Eliminamos invitaciones relacionadas.
-         */
         invites.entrySet().removeIf(
                 entry -> entry.getValue().equalsIgnoreCase(key)
         );
@@ -256,9 +257,6 @@ public class FactionManager {
             return false;
         }
 
-        /*
-         * El líder no puede abandonar.
-         */
         if (faction.isLeader(
                 player.getUniqueId()
         )) {
@@ -490,9 +488,6 @@ public class FactionManager {
             return false;
         }
 
-        /*
-         * Solo líder u officer.
-         */
         if (!isLeader(player)
                 && !isOfficer(player)) {
 
@@ -502,24 +497,14 @@ public class FactionManager {
         Location location =
                 player.getLocation();
 
-        /*
-         * El faction home DEBE estar dentro
-         * de un claim de la propia faction.
-         */
         Faction claimedFaction =
                 plugin.getClaimManager()
                         .getFactionAt(location);
 
-        /*
-         * Wilderness.
-         */
         if (claimedFaction == null) {
             return false;
         }
 
-        /*
-         * Claim de otra faction.
-         */
         if (!claimedFaction.getName()
                 .equalsIgnoreCase(
                         faction.getName()
@@ -528,9 +513,6 @@ public class FactionManager {
             return false;
         }
 
-        /*
-         * Guardamos la ubicación completa.
-         */
         faction.setHome(location);
 
         return true;
@@ -723,11 +705,6 @@ public class FactionManager {
     // MUERTE / PÉRDIDA DE DTR
     // =========================================================
 
-    /**
-     * Procesa la muerte de un jugador.
-     *
-     * Devuelve true si la faction perdió DTR.
-     */
     public boolean handleDeath(Player player) {
 
         if (player == null) {
@@ -737,17 +714,13 @@ public class FactionManager {
         Faction faction =
                 getFaction(player);
 
-        /*
-         * Jugador sin faction:
-         * no pierde DTR.
-         */
         if (faction == null) {
             return false;
         }
 
         /*
-         * Si ya está raidable, no puede
-         * perder más DTR.
+         * Una faction ya raidable
+         * no pierde más DTR.
          */
         if (faction.isRaidable()) {
             return false;
@@ -760,9 +733,6 @@ public class FactionManager {
                                 1.0
                         );
 
-        /*
-         * Evitamos valores inválidos.
-         */
         if (Double.isNaN(loss)
                 || Double.isInfinite(loss)
                 || loss <= 0.0) {
@@ -775,25 +745,15 @@ public class FactionManager {
 
         faction.removeDtr(loss);
 
-        /*
-         * Confirmamos que realmente perdió DTR.
-         */
         return faction.getDtr() < oldDtr;
     }
 
-    /**
-     * Comprueba si una faction está Raidable.
-     */
     public boolean isRaidable(Faction faction) {
 
         return faction != null
                 && faction.isRaidable();
     }
 
-    /**
-     * Comprueba si la faction del jugador
-     * está Raidable.
-     */
     public boolean isRaidable(Player player) {
 
         if (player == null) {
@@ -807,7 +767,71 @@ public class FactionManager {
     }
 
     // =========================================================
-    // DTR
+    // DTR - CONFIGURACIÓN
+    // =========================================================
+
+    public double getMaxDtr() {
+
+        double maxDtr =
+                plugin.getConfig()
+                        .getDouble(
+                                "factions.max-dtr",
+                                5.0
+                        );
+
+        if (Double.isNaN(maxDtr)
+                || Double.isInfinite(maxDtr)
+                || maxDtr <= 0.0) {
+
+            return 5.0;
+        }
+
+        return maxDtr;
+    }
+
+    public double getStartingDtr() {
+
+        double startingDtr =
+                plugin.getConfig()
+                        .getDouble(
+                                "factions.starting-dtr",
+                                1.0
+                        );
+
+        if (Double.isNaN(startingDtr)
+                || Double.isInfinite(startingDtr)
+                || startingDtr < 0.0) {
+
+            return 1.0;
+        }
+
+        return Math.min(
+                startingDtr,
+                getMaxDtr()
+        );
+    }
+
+    public double getDtrLossOnDeath() {
+
+        double loss =
+                plugin.getConfig()
+                        .getDouble(
+                                "factions.dtr-loss-on-death",
+                                1.0
+                        );
+
+        if (Double.isNaN(loss)
+                || Double.isInfinite(loss)
+                || loss < 0.0) {
+
+            return 1.0;
+        }
+
+        return loss;
+    }
+
+    // =========================================================
+    // DTR - REGENERACIÓN
     // =========================================================
 
     public void regenerateDtr() {
@@ -840,24 +864,32 @@ public class FactionManager {
                                 0.05
                         );
 
-        if (regenerationAmount <= 0) {
+        if (Double.isNaN(regenerationAmount)
+                || Double.isInfinite(regenerationAmount)
+                || regenerationAmount <= 0.0) {
+
             regenerationAmount = 0.05;
         }
 
         double maxDtr =
-                plugin.getConfig()
-                        .getDouble(
-                                "factions.max-dtr",
-                                5.0
-                        );
+                getMaxDtr();
 
         long now =
                 System.currentTimeMillis();
 
         for (Faction faction :
-                factions.values()) {
+                new ArrayList<>(factions.values())) {
 
             if (faction == null) {
+                continue;
+            }
+
+            /*
+             * Las factions raidable quedan
+             * en 0 hasta que sean recuperadas
+             * manualmente.
+             */
+            if (faction.isRaidable()) {
                 continue;
             }
 
@@ -882,14 +914,17 @@ public class FactionManager {
                     now
             );
 
-            if (faction.getDtr() >= maxDtr) {
+            double currentDtr =
+                    faction.getDtr();
+
+            if (currentDtr >= maxDtr) {
                 continue;
             }
 
             double newDtr =
                     Math.min(
                             maxDtr,
-                            faction.getDtr()
+                            currentDtr
                                     + regenerationAmount
                     );
 
@@ -910,6 +945,20 @@ public class FactionManager {
             return;
         }
 
+        if (Double.isNaN(dtr)
+                || Double.isInfinite(dtr)) {
+
+            return;
+        }
+
+        double maxDtr =
+                getMaxDtr();
+
+        dtr = Math.max(
+                0.0,
+                Math.min(dtr, maxDtr)
+        );
+
         faction.setDtr(dtr);
     }
 
@@ -918,11 +967,40 @@ public class FactionManager {
             double amount
     ) {
 
-        if (faction == null || amount <= 0) {
+        if (faction == null) {
             return;
         }
 
-        faction.addDtr(amount);
+        if (Double.isNaN(amount)
+                || Double.isInfinite(amount)
+                || amount <= 0.0) {
+
+            return;
+        }
+
+        double maxDtr =
+                getMaxDtr();
+
+        double newDtr =
+                Math.min(
+                        maxDtr,
+                        faction.getDtr() + amount
+                );
+
+        faction.setDtr(newDtr);
+
+        /*
+         * Si recuperamos una faction desde
+         * 0, reiniciamos su temporizador
+         * de regeneración.
+         */
+        if (faction.getDtr() > 0.0) {
+
+            lastDtrRegeneration.put(
+                    normalize(faction.getName()),
+                    System.currentTimeMillis()
+            );
+        }
     }
 
     public void removeDtr(
@@ -930,7 +1008,14 @@ public class FactionManager {
             double amount
     ) {
 
-        if (faction == null || amount <= 0) {
+        if (faction == null) {
+            return;
+        }
+
+        if (Double.isNaN(amount)
+                || Double.isInfinite(amount)
+                || amount <= 0.0) {
+
             return;
         }
 
