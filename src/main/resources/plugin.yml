@@ -1,15 +1,79 @@
 name: HCFCore
-version: 1.0.0
+
+version: 2.0.0
+
 main: com.hcfcore.HCFCore
+
 api-version: '1.20'
+
 author: HCFCore
-description: Survival HCF Core
+
+description: Survival HCF Core for Paper 1.20.4
+
 commands:
+
+  f:
+
+    description: Faction commands
+
+    aliases: [faction, fac]
+
   hcf:
-    description: Main HCFCore command
-    usage: /hcf
-    permission: hcfcore.admin
+
+    description: HCF administration
+
+  claim:
+
+    description: Claim management
+
+  combat:
+
+    description: Combat status
+
+  pay:
+
+    description: Send money
+
+  kit:
+
+    description: Claim a kit
+
+  class:
+
+    description: Choose HCF class
+
+  spawn:
+
+    description: Teleport to spawn
+
+  koth:
+
+    description: KOTH commands
+
+  airdrop:
+
+    description: Airdrop commands
+
+  lives:
+
+    description: Lives management
+
+  deathban:
+
+    description: Deathban management
+
+  balance:
+
+    description: View balance
+
+    aliases: [bal, money]
 
 permissions:
-  hcfcore.admin:
+
+  hcf.admin:
+
+    default: op
+
+  hcf.bypass:
+
     default: op
