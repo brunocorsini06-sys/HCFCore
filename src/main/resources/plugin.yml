@@ -1,0 +1,15 @@
+name: HCFCore
+version: 1.0.0
+main: com.hcfcore.HCFCore
+api-version: '1.20'
+author: HCFCore
+description: Survival HCF Core
+commands:
+  hcf:
+    description: Main HCFCore command
+    usage: /hcf
+    permission: hcfcore.admin
+
+permissions:
+  hcfcore.admin:
+    default: op
