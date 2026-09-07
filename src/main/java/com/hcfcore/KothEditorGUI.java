@@ -2,12 +2,12 @@ package com.hcfcore;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -45,13 +45,27 @@ public class KothEditorGUI implements Listener {
                 MAIN_TITLE
         );
 
+        Location location =
+                plugin.getKothManager().getLocation();
+
+        String locationText =
+                location == null
+                        ? "No configurada"
+                        : location.getBlockX()
+                        + ", "
+                        + location.getBlockY()
+                        + ", "
+                        + location.getBlockZ();
+
         inv.setItem(
                 10,
                 item(
                         Material.COMPASS,
                         ChatColor.AQUA + "📍 Ubicación",
                         ChatColor.GRAY +
-                                "Guardar tu ubicación actual"
+                                "Usar tu ubicación actual",
+                        ChatColor.GRAY +
+                                "Actual: " + locationText
                 )
         );
 
@@ -61,12 +75,13 @@ public class KothEditorGUI implements Listener {
                         Material.CLOCK,
                         ChatColor.YELLOW + "⏱ Tiempo de captura",
                         ChatColor.GRAY +
-                                "Actualmente: " +
-                                plugin.getConfig().getInt(
-                                        "koth.capture-seconds",
-                                        120
-                                ) +
-                                " segundos"
+                                "Actual: "
+                                + getCaptureSeconds()
+                                + " segundos",
+                        ChatColor.GRAY +
+                                "Click izquierdo: +10s",
+                        ChatColor.GRAY +
+                                "Click derecho: -10s"
                 )
         );
 
@@ -76,7 +91,13 @@ public class KothEditorGUI implements Listener {
                         Material.SLIME_BALL,
                         ChatColor.GREEN + "📏 Radio",
                         ChatColor.GRAY +
-                                "Configurar radio del KOTH"
+                                "Actual: "
+                                + getRadius()
+                                + " bloques",
+                        ChatColor.GRAY +
+                                "Click izquierdo: +1",
+                        ChatColor.GRAY +
+                                "Click derecho: -1"
                 )
         );
 
@@ -86,7 +107,7 @@ public class KothEditorGUI implements Listener {
                         Material.CHEST,
                         ChatColor.GOLD + "🎁 Recompensas",
                         ChatColor.GRAY +
-                                "Editar las recompensas"
+                                "Editar dinero e ítem"
                 )
         );
 
@@ -118,17 +139,15 @@ public class KothEditorGUI implements Listener {
                 );
 
         Material material =
-                Material.matchMaterial(
-                        materialName
+                Material.matchMaterial(materialName);
+
+        int amount =
+                plugin.getConfig().getInt(
+                        "koth.reward-item-amount",
+                        4
                 );
 
-        if (material != null) {
-
-            int amount =
-                    plugin.getConfig().getInt(
-                            "koth.reward-item-amount",
-                            4
-                    );
+        if (material != null && amount > 0) {
 
             inv.setItem(
                     0,
@@ -140,12 +159,27 @@ public class KothEditorGUI implements Listener {
         }
 
         inv.setItem(
+                45,
+                item(
+                        Material.GOLD_INGOT,
+                        ChatColor.GOLD + "💰 Dinero",
+                        ChatColor.GRAY +
+                                "Actual: $"
+                                + getRewardMoney(),
+                        ChatColor.GRAY +
+                                "Click izquierdo: +100",
+                        ChatColor.GRAY +
+                                "Click derecho: -100"
+                )
+        );
+
+        inv.setItem(
                 49,
                 item(
                         Material.LIME_WOOL,
                         ChatColor.GREEN + "💾 GUARDAR",
                         ChatColor.GRAY +
-                                "Guardar recompensas"
+                                "Guardar recompensa"
                 )
         );
 
@@ -205,84 +239,12 @@ public class KothEditorGUI implements Listener {
         );
     }
 
-    private void openConfig(Player player) {
-
-        Inventory inv = Bukkit.createInventory(
-                null,
-                27,
-                CONFIG_TITLE
-        );
-
-        inv.setItem(
-                11,
-                item(
-                        Material.CLOCK,
-                        ChatColor.YELLOW +
-                                "⏱ Tiempo de captura",
-                        ChatColor.GRAY +
-                                "Actual: " +
-                                plugin.getConfig().getInt(
-                                        "koth.capture-seconds",
-                                        120
-                                ) +
-                                " segundos"
-                )
-        );
-
-        inv.setItem(
-                13,
-                item(
-                        Material.SLIME_BALL,
-                        ChatColor.GREEN +
-                                "📏 Radio",
-                        ChatColor.GRAY +
-                                "Actual: configurable"
-                )
-        );
-
-        inv.setItem(
-                15,
-                item(
-                        Material.GOLD_INGOT,
-                        ChatColor.GOLD +
-                                "💰 Dinero",
-                        ChatColor.GRAY +
-                                "Actual: $" +
-                                plugin.getConfig().getDouble(
-                                        "koth.reward-money",
-                                        500
-                                )
-                )
-        );
-
-        inv.setItem(
-                22,
-                item(
-                        Material.ARROW,
-                        ChatColor.YELLOW +
-                                "← Volver",
-                        ChatColor.GRAY +
-                                "Volver"
-                )
-        );
-
-        player.openInventory(inv);
-    }
-
-    private void saveLocation(Player player) {
-
-        LocationStorage.setLocation(player);
-
-        player.sendMessage(
-                ChatColor.GREEN +
-                        "✓ Ubicación del KOTH establecida "
-                        + "en tu posición actual."
-        );
-    }
-
     private void saveMain(Player player) {
 
-        if (!LocationStorage.hasLocation()) {
+        Location location =
+                plugin.getKothManager().getLocation();
+
+        if (location == null) {
 
             player.sendMessage(
                     ChatColor.RED +
@@ -292,16 +254,174 @@ public class KothEditorGUI implements Listener {
             return;
         }
 
+        plugin.saveConfig();
+
         player.sendMessage(
                 ChatColor.GREEN +
-                        "✓ Configuración del KOTH guardada."
+                        "✓ KOTH guardado correctamente."
+        );
+
+        player.sendMessage(
+                ChatColor.GRAY +
+                        "Ubicación: "
+                        + location.getBlockX()
+                        + ", "
+                        + location.getBlockY()
+                        + ", "
+                        + location.getBlockZ()
+        );
+
+        player.sendMessage(
+                ChatColor.GRAY +
+                        "Captura: "
+                        + getCaptureSeconds()
+                        + "s | Radio: "
+                        + getRadius()
+                        + " bloques"
+        );
+    }
+
+    private void setLocation(Player player) {
+
+        Location location =
+                player.getLocation().clone();
+
+        plugin.getKothManager()
+                .setLocation(location);
+
+        player.sendMessage(
+                ChatColor.GREEN +
+                        "✓ Ubicación del KOTH establecida."
+        );
+
+        player.sendMessage(
+                ChatColor.GRAY +
+                        "X: " + location.getBlockX()
+                        + " Y: " + location.getBlockY()
+                        + " Z: " + location.getBlockZ()
+        );
+    }
+
+    private void changeCaptureTime(
+            Player player,
+            int amount
+    ) {
+
+        int current =
+                getCaptureSeconds();
+
+        int newValue =
+                Math.max(
+                        10,
+                        current + amount
+                );
+
+        plugin.getConfig().set(
+                "koth.capture-seconds",
+                newValue
+        );
+
+        plugin.saveConfig();
+
+        player.sendMessage(
+                ChatColor.GREEN +
+                        "✓ Tiempo de captura: "
+                        + newValue
+                        + " segundos."
+        );
+
+        open(player);
+    }
+
+    private void changeRadius(
+            Player player,
+            double amount
+    ) {
+
+        double current =
+                getRadius();
+
+        double newValue =
+                Math.max(
+                        1.0,
+                        current + amount
+                );
+
+        plugin.getConfig().set(
+                "koth.radius",
+                newValue
+        );
+
+        plugin.saveConfig();
+
+        player.sendMessage(
+                ChatColor.GREEN +
+                        "✓ Radio del KOTH: "
+                        + newValue
+                        + " bloques."
+        );
+
+        open(player);
+    }
+
+    private void changeMoney(
+            Player player,
+            double amount
+    ) {
+
+        double current =
+                getRewardMoney();
+
+        double newValue =
+                Math.max(
+                        0,
+                        current + amount
+                );
+
+        plugin.getConfig().set(
+                "koth.reward-money",
+                newValue
+        );
+
+        plugin.saveConfig();
+
+        player.sendMessage(
+                ChatColor.GREEN +
+                        "✓ Recompensa: $"
+                        + newValue
+        );
+
+        openRewards(player);
+    }
+
+    private int getCaptureSeconds() {
+
+        return plugin.getConfig().getInt(
+                "koth.capture-seconds",
+                120
+        );
+    }
+
+    private double getRadius() {
+
+        return plugin.getConfig().getDouble(
+                "koth.radius",
+                10.0
+        );
+    }
+
+    private double getRewardMoney() {
+
+        return plugin.getConfig().getDouble(
+                "koth.reward-money",
+                500
         );
     }
 
     private ItemStack item(
             Material material,
             String name,
-            String lore
+            String... lore
     ) {
 
         ItemStack stack =
@@ -317,7 +437,9 @@ public class KothEditorGUI implements Listener {
             List<String> loreList =
                     new ArrayList<>();
 
-            loreList.add(lore);
+            for (String line : lore) {
+                loreList.add(line);
+            }
 
             meta.setLore(loreList);
 
@@ -328,7 +450,10 @@ public class KothEditorGUI implements Listener {
     }
 
     private boolean isAdmin(Player player) {
-        return player.hasPermission("hcf.admin");
+
+        return player.hasPermission(
+                "hcf.admin"
+        );
     }
 
     private void deny(Player player) {
@@ -367,27 +492,56 @@ public class KothEditorGUI implements Listener {
             switch (event.getSlot()) {
 
                 case 10:
-                    saveLocation(player);
+
+                    setLocation(player);
+                    open(player);
                     break;
 
                 case 12:
-                    openConfig(player);
+
+                    if (event.isLeftClick()) {
+
+                        changeCaptureTime(
+                                player,
+                                10
+                        );
+
+                    } else if (event.isRightClick()) {
+
+                        changeCaptureTime(
+                                player,
+                                -10
+                        );
+                    }
+
                     break;
 
                 case 14:
-                    player.sendMessage(
-                            ChatColor.YELLOW +
-                                    "El radio se configurará "
-                                    + "en la siguiente versión "
-                                    + "del menú."
-                    );
+
+                    if (event.isLeftClick()) {
+
+                        changeRadius(
+                                player,
+                                1
+                        );
+
+                    } else if (event.isRightClick()) {
+
+                        changeRadius(
+                                player,
+                                -1
+                        );
+                    }
+
                     break;
 
                 case 16:
+
                     openRewards(player);
                     break;
 
                 case 22:
+
                     saveMain(player);
                     break;
 
@@ -400,9 +554,32 @@ public class KothEditorGUI implements Listener {
 
         if (title.equals(REWARD_TITLE)) {
 
+            if (event.getSlot() == 45) {
+
+                event.setCancelled(true);
+
+                if (event.isLeftClick()) {
+
+                    changeMoney(
+                            player,
+                            100
+                    );
+
+                } else if (event.isRightClick()) {
+
+                    changeMoney(
+                            player,
+                            -100
+                    );
+                }
+
+                return;
+            }
+
             if (event.getSlot() == 49) {
 
                 event.setCancelled(true);
+
                 saveRewards(player);
 
                 return;
@@ -411,28 +588,11 @@ public class KothEditorGUI implements Listener {
             if (event.getSlot() == 53) {
 
                 event.setCancelled(true);
+
                 open(player);
             }
 
             return;
         }
-
-        if (title.equals(CONFIG_TITLE)) {
-
-            event.setCancelled(true);
-
-            if (event.getSlot() == 22) {
-                open(player);
-            }
-        }
-    }
-
-    @EventHandler
-    public void onClose(
-            InventoryCloseEvent event
-    ) {
-
-        // Los cambios solamente se guardan
-        // cuando se pulsa el botón GUARDAR.
     }
 }
