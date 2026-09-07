@@ -3,12 +3,11 @@ plugins {
 }
 
 group = 'com.hcfcore'
-version = '1.0.0'
+version = '2.0.0'
 
 repositories {
-    maven {
-        url = 'https://repo.papermc.io/repository/maven-public/'
-    }
+    mavenCentral()
+    maven { url = 'https://repo.papermc.io/repository/maven-public/' }
 }
 
 dependencies {
@@ -23,8 +22,4 @@ java {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-}
-
-jar {
-    archiveBaseName = 'HCFCore'
 }
