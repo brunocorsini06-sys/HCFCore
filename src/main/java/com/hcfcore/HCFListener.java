@@ -1,4 +1,5 @@
 package com.hcfcore;
+
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
@@ -19,143 +20,207 @@ import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+
 import java.util.Iterator;
+
 public class HCFListener implements Listener {
+
     private final HCFCore plugin;
+
     public HCFListener(HCFCore plugin) {
         this.plugin = plugin;
     }
+
     // =========================================================
     // PLAYER JOIN
     // =========================================================
+
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
+
         Player player = event.getPlayer();
-        plugin.getDeathbanManager()
-                .setupPlayer(player);
-        plugin.getScoreboardManager()
-                .update(player);
+
+        plugin.getDeathbanManager().setupPlayer(player);
+
+        plugin.getScoreboardManager().update(player);
+
         if (plugin.getKothManager().isActive()) {
+
             if (plugin.getKothManager().getBossBar() != null) {
+
                 plugin.getKothManager()
                         .getBossBar()
                         .addPlayer(player);
             }
         }
+
         long deathban =
                 plugin.getDeathbanManager()
                         .getRemainingSeconds(player);
+
         if (deathban == -1) {
+
             player.sendMessage(
                     ChatColor.RED +
                             "☠ Estás permanentemente deathbaneado."
             );
+
         } else if (deathban > 0) {
+
             player.sendMessage(
                     ChatColor.RED +
                             "☠ Estás deathbaneado por "
                             + formatTime(deathban)
             );
         }
+
         player.sendMessage(
                 ChatColor.GOLD +
                         "━━━━━━━━━━━━━━━━━━━━"
         );
+
         player.sendMessage(
                 ChatColor.YELLOW +
                         "      Bienvenido a HCF"
         );
+
         player.sendMessage(
                 ChatColor.GRAY +
                         "Usa /f para gestionar tu faction."
         );
+
         player.sendMessage(
                 ChatColor.GOLD +
                         "━━━━━━━━━━━━━━━━━━━━"
         );
     }
+
     // =========================================================
     // PLAYER QUIT
     // =========================================================
+
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
+
         Player player = event.getPlayer();
+
         if (plugin.getCombatManager()
                 .isInCombat(player)) {
+
             plugin.getCombatManager()
                     .handleQuit(player);
         }
+
         if (plugin.getKothManager()
                 .getBossBar() != null) {
+
             plugin.getKothManager()
                     .getBossBar()
                     .removePlayer(player);
         }
     }
+
     // =========================================================
     // BLOCK BREAK
     // =========================================================
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+
+    @EventHandler(
+            priority = EventPriority.HIGH,
+            ignoreCancelled = true
+    )
     public void onBlockBreak(BlockBreakEvent event) {
+
         Player player = event.getPlayer();
+
         if (!canBuild(
                 player,
                 event.getBlock().getLocation()
         )) {
+
             event.setCancelled(true);
             sendClaimDenied(player);
         }
     }
+
     // =========================================================
     // BLOCK PLACE
     // =========================================================
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+
+    @EventHandler(
+            priority = EventPriority.HIGH,
+            ignoreCancelled = true
+    )
     public void onBlockPlace(BlockPlaceEvent event) {
+
         Player player = event.getPlayer();
+
         if (!canBuild(
                 player,
                 event.getBlock().getLocation()
         )) {
+
             event.setCancelled(true);
             sendClaimDenied(player);
         }
     }
+
     // =========================================================
     // INVENTORY OPEN
     // =========================================================
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+
+    @EventHandler(
+            priority = EventPriority.HIGH,
+            ignoreCancelled = true
+    )
     public void onInventoryOpen(InventoryOpenEvent event) {
+
         if (!(event.getPlayer() instanceof Player)) {
             return;
         }
+
         Player player =
                 (Player) event.getPlayer();
+
         Location location =
                 event.getInventory().getLocation();
+
         if (location == null) {
             return;
         }
+
         if (!canBuild(player, location)) {
+
             event.setCancelled(true);
             sendClaimDenied(player);
         }
     }
+
     // =========================================================
     // INTERACT
     // =========================================================
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+
+    @EventHandler(
+            priority = EventPriority.HIGH,
+            ignoreCancelled = true
+    )
     public void onInteract(PlayerInteractEvent event) {
+
         Player player =
                 event.getPlayer();
+
         if (event.getClickedBlock() == null) {
             return;
         }
+
         Location location =
                 event.getClickedBlock().getLocation();
+
         if (canBuild(player, location)) {
             return;
         }
+
         switch (event.getClickedBlock().getType()) {
+
             case CHEST:
             case TRAPPED_CHEST:
             case BARREL:
@@ -243,114 +308,176 @@ public class HCFListener implements Listener {
             case BAMBOO_BUTTON:
             case CRIMSON_BUTTON:
             case WARPED_BUTTON:
+
                 event.setCancelled(true);
                 sendClaimDenied(player);
                 break;
+
             default:
                 break;
         }
     }
+
     // =========================================================
     // EXPLOSIONES
     // =========================================================
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+
+    @EventHandler(
+            priority = EventPriority.HIGH,
+            ignoreCancelled = true
+    )
     public void onExplosion(EntityExplodeEvent event) {
+
         Iterator<org.bukkit.block.Block> iterator =
                 event.blockList().iterator();
+
         while (iterator.hasNext()) {
+
             org.bukkit.block.Block block =
                     iterator.next();
+
             if (plugin.getClaimManager()
                     .isClaimed(block.getLocation())) {
+
                 iterator.remove();
             }
         }
     }
+
     // =========================================================
     // PISTONES - EXTENDER
     // =========================================================
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+
+    @EventHandler(
+            priority = EventPriority.HIGH,
+            ignoreCancelled = true
+    )
     public void onPistonExtend(
             BlockPistonExtendEvent event
     ) {
+
         for (org.bukkit.block.Block block :
                 event.getBlocks()) {
+
             Location destination =
                     block.getLocation().add(
                             event.getDirection().getModX(),
                             event.getDirection().getModY(),
                             event.getDirection().getModZ()
                     );
+
             if (plugin.getClaimManager()
                     .isClaimed(destination)) {
+
                 event.setCancelled(true);
                 return;
             }
         }
     }
+
     // =========================================================
     // PISTONES - RETRAER
     // =========================================================
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+
+    @EventHandler(
+            priority = EventPriority.HIGH,
+            ignoreCancelled = true
+    )
     public void onPistonRetract(
             BlockPistonRetractEvent event
     ) {
+
         for (org.bukkit.block.Block block :
                 event.getBlocks()) {
+
             if (plugin.getClaimManager()
                     .isClaimed(block.getLocation())) {
+
                 event.setCancelled(true);
                 return;
             }
         }
     }
+
     // =========================================================
     // LÍQUIDOS
     // =========================================================
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onLiquidFlow(BlockFromToEvent event) {
+
+    @EventHandler(
+            priority = EventPriority.HIGH,
+            ignoreCancelled = true
+    )
+    public void onLiquidFlow(
+            BlockFromToEvent event
+    ) {
+
         if (plugin.getClaimManager()
-                .isClaimed(event.getToBlock().getLocation())) {
+                .isClaimed(
+                        event.getToBlock().getLocation()
+                )) {
+
             event.setCancelled(true);
         }
     }
+
     // =========================================================
     // FUEGO
     // =========================================================
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onBlockBurn(BlockBurnEvent event) {
+
+    @EventHandler(
+            priority = EventPriority.HIGH,
+            ignoreCancelled = true
+    )
+    public void onBlockBurn(
+            BlockBurnEvent event
+    ) {
+
         if (plugin.getClaimManager()
-                .isClaimed(event.getBlock().getLocation())) {
+                .isClaimed(
+                        event.getBlock().getLocation()
+                )) {
+
             event.setCancelled(true);
         }
     }
+
     // =========================================================
     // PVP / COMBAT TAG
     // =========================================================
+
     @EventHandler
     public void onDamage(
             EntityDamageByEntityEvent event
     ) {
+
         if (!(event.getEntity() instanceof Player)) {
             return;
         }
+
         Player victim =
                 (Player) event.getEntity();
+
         Player attacker = null;
+
         Entity damager =
                 event.getDamager();
+
         if (damager instanceof Player) {
             attacker = (Player) damager;
         }
+
         if (attacker == null) {
             return;
         }
+
         Faction attackerFaction =
                 plugin.getFactionManager()
                         .getFaction(attacker);
+
         Faction victimFaction =
                 plugin.getFactionManager()
                         .getFaction(victim);
+
         if (attackerFaction != null
                 && victimFaction != null
                 && attackerFaction
@@ -358,125 +485,287 @@ public class HCFListener implements Listener {
                 .equalsIgnoreCase(
                         victimFaction.getName()
                 )) {
+
             boolean friendlyFire =
                     plugin.getConfig()
                             .getBoolean(
                                     "factions.friendly-fire",
                                     false
                             );
+
             if (!friendlyFire) {
+
                 event.setCancelled(true);
+
                 attacker.sendMessage(
                         ChatColor.RED +
                                 "No puedes atacar a un miembro de tu faction."
                 );
+
                 return;
             }
         }
+
         if (event.isCancelled()) {
             return;
         }
+
         plugin.getCombatManager()
                 .tag(attacker);
+
         plugin.getCombatManager()
                 .tag(victim);
     }
+
     // =========================================================
     // PLAYER DEATH
     // =========================================================
+
     @EventHandler
     public void onDeath(
             PlayerDeathEvent event
     ) {
+
         Player player =
                 event.getEntity();
+
+        // -----------------------------------------------------
+        // ESTADÍSTICA DE MUERTES
+        // -----------------------------------------------------
+
         plugin.getFactionManager()
                 .addDeath(player);
+
+        // -----------------------------------------------------
+        // DTR
+        // -----------------------------------------------------
+
+        Faction faction =
+                plugin.getFactionManager()
+                        .getFaction(player);
+
+        boolean dtrLost = false;
+
+        if (faction != null) {
+
+            double oldDtr =
+                    faction.getDtr();
+
+            dtrLost =
+                    plugin.getFactionManager()
+                            .handleDeath(player);
+
+            double newDtr =
+                    faction.getDtr();
+
+            if (dtrLost) {
+
+                player.sendMessage(
+                        ChatColor.RED +
+                                "☠ Tu faction perdió "
+                                + formatDtr(oldDtr - newDtr)
+                                + " DTR."
+                );
+
+                player.sendMessage(
+                        ChatColor.RED +
+                                "DTR actual: "
+                                + formatDtr(newDtr)
+                );
+
+                // -------------------------------------------------
+                // RAIDABLE
+                // -------------------------------------------------
+
+                if (newDtr <= 0.0
+                        && oldDtr > 0.0) {
+
+                    BukkitBroadcastRaidable(faction);
+                }
+            }
+        }
+
+        // -----------------------------------------------------
+        // DEATHBAN
+        // -----------------------------------------------------
+
         if (plugin.getConfig()
                 .getBoolean(
                         "deathban.enabled",
                         true
                 )) {
+
             plugin.getDeathbanManager()
                     .deathban(player);
         }
+
+        // -----------------------------------------------------
+        // KILL
+        // -----------------------------------------------------
+
         Player killer =
                 player.getKiller();
+
         if (killer != null
                 && !killer.equals(player)) {
+
             plugin.getFactionManager()
                     .addKill(killer);
+
             killer.sendMessage(
                     ChatColor.GREEN +
                             "⚔ ¡Has matado a "
                             + player.getName()
                             + "!"
             );
-        }
-        if (killer != null) {
+
             plugin.getScoreboardManager()
                     .update(killer);
         }
+
+        // -----------------------------------------------------
+        // COMBAT TAG
+        // -----------------------------------------------------
+
+        plugin.getCombatManager()
+                .removeTag(player);
+
+        if (killer != null) {
+
+            plugin.getCombatManager()
+                    .removeTag(killer);
+        }
+
+        // -----------------------------------------------------
+        // SCOREBOARD
+        // -----------------------------------------------------
+
         plugin.getScoreboardManager()
                 .update(player);
     }
+
+    // =========================================================
+    // RAIDABLE ANNOUNCEMENT
+    // =========================================================
+
+    private void BukkitBroadcastRaidable(
+            Faction faction
+    ) {
+
+        if (faction == null) {
+            return;
+        }
+
+        String message =
+                ChatColor.DARK_RED
+                        + "☠ "
+                        + ChatColor.RED
+                        + "¡La faction "
+                        + ChatColor.YELLOW
+                        + faction.getName()
+                        + ChatColor.RED
+                        + " está ahora "
+                        + ChatColor.DARK_RED
+                        + "RAIDABLE"
+                        + ChatColor.RED
+                        + "!";
+
+        plugin.getServer()
+                .broadcastMessage(message);
+    }
+
     // =========================================================
     // CLAIM CHECK
     // =========================================================
+
     private boolean canBuild(
             Player player,
             Location location
     ) {
+
         if (player == null || location == null) {
             return false;
         }
+
         if (player.hasPermission("hcf.bypass")) {
             return true;
         }
+
         return plugin.getClaimManager()
                 .canBuild(
                         player,
                         location
                 );
     }
+
     // =========================================================
     // CLAIM DENIED
     // =========================================================
+
     private void sendClaimDenied(
             Player player
     ) {
+
         player.sendMessage(
                 ChatColor.RED +
                         "No puedes hacer eso dentro del claim de otra faction."
         );
     }
+
+    // =========================================================
+    // DTR FORMAT
+    // =========================================================
+
+    private String formatDtr(
+            double value
+    ) {
+
+        return String.format(
+                java.util.Locale.US,
+                "%.1f",
+                Math.max(0.0, value)
+        );
+    }
+
     // =========================================================
     // TIME FORMAT
     // =========================================================
+
     private String formatTime(
             long seconds
     ) {
+
         if (seconds <= 0) {
             return "0s";
         }
+
         long days =
                 seconds / 86400;
+
         seconds %= 86400;
+
         long hours =
                 seconds / 3600;
+
         seconds %= 3600;
+
         long minutes =
                 seconds / 60;
+
         seconds %= 60;
+
         if (days > 0) {
             return days + "d " + hours + "h";
         }
+
         if (hours > 0) {
             return hours + "h " + minutes + "m";
         }
+
         if (minutes > 0) {
             return minutes + "m " + seconds + "s";
         }
+
         return seconds + "s";
     }
 }
