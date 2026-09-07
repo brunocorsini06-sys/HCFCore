@@ -1,38 +1,107 @@
-world-border:
-  enabled: true
+version: 2
+
+world:
+  name: world
+  border-size: 5000
   center-x: 0
   center-z: 0
-  size: 5000
+  spawn-radius: 100
+
+factions:
+  max-members: 20
+  max-claim-chunks: 20
+  require-adjacent-claims: true
+  starting-dtr: 1.0
+  dtr-per-member: 0.5
+  max-dtr: 5.0
+  dtr-regeneration: true
+  dtr-regeneration-minutes: 10
+  friendly-fire: false
+  invite-expire-seconds: 60
+
+combat:
+  enabled: true
+  tag-seconds: 30
+  block-commands: true
+  punish-logout: true
+  pearl-cooldown-seconds: 16
+
+deathban:
+  enabled: true
+  minutes-per-death: 30
+  remove-life: true
+  permanent-at-zero-lives: true
+  starting-lives: 3
+
+airdrop:
+  enabled: true
+  interval-minutes: 30
+  lifetime-seconds: 180
+  radius: 2450
+  bossbar-seconds: true
+  chest-material: CHEST
+  loot:
+    - DIAMOND:2
+    - GOLD_INGOT:8
+    - ENDER_PEARL:2
+    - GOLDEN_APPLE:1
+
+koth:
+  capture-seconds: 120
+  reward-money: 500
+  reward-item: DIAMOND
+  reward-item-amount: 4
+
+kits:
+  starter:
+    cooldown-seconds: 86400
+    items:
+      - STONE_SWORD:1
+      - BREAD:16
+      - COBBLESTONE:32
+
+  archer:
+    cooldown-seconds: 86400
+    items:
+      - BOW:1
+      - ARROW:32
+      - LEATHER_HELMET:1
+      - LEATHER_CHESTPLATE:1
+      - LEATHER_LEGGINGS:1
+      - LEATHER_BOOTS:1
+
+classes:
+  archer:
+    speed-level: 1
+
+  bard:
+    radius: 12
+    strength-level: 0
+    resistance-level: 0
+    speed-level: 0
+
+villager:
+  enabled: true
+
+  librarian:
+    trades:
+      - MENDING:1:20
+      - PROTECTION_ENVIRONMENTAL:1:18
+      - SHARPNESS:1:20
+
+golem:
+  enabled: true
 
 scoreboard:
   enabled: true
   title: "&6&lHCF"
+
   lines:
     - "&7&m----------------"
     - "&fFaction: &e%faction%"
-    - "&fDTR: &e%dtr%"
-    - "&fBalance: &e$%balance%"
-    - "&fOnline: &e%online%"
+    - "&fDTR: &c%dtr%"
+    - "&fBalance: &a$%balance%"
+    - "&fKills: &e%kills%"
+    - "&fDeaths: &c%deaths%"
+    - "&fClaim: &b%claim%"
     - "&7&m----------------"
-
-airdrops:
-  enabled: true
-  announce-chat: false
-  bossbar: true
-  interval-minutes: 30
-  lifetime-seconds: 300
-  random-radius: 2450
-
-iron-golems:
-  enabled: true
-
-villagers:
-  enabled: true
-
-combat-tag:
-  enabled: true
-  seconds: 30
-
-deathban:
-  enabled: true
-  minutes: 30
