@@ -24,14 +24,20 @@ public class HCFListener implements Listener {
         Player player = event.getPlayer();
 
         /*
-         * Actualizar scoreboard al entrar.
+         * Inicializar vidas.
+         */
+        plugin.getDeathbanManager()
+                .setupPlayer(player);
+
+        /*
+         * Actualizar scoreboard.
          */
         plugin.getScoreboardManager()
                 .update(player);
 
         /*
          * Agregar jugador al BossBar del KOTH
-         * si el evento está activo.
+         * si está activo.
          */
         if (plugin.getKothManager().isActive()) {
 
@@ -102,15 +108,8 @@ public class HCFListener implements Listener {
         if (plugin.getCombatManager()
                 .isInCombat(player)) {
 
-            if (plugin.getConfig()
-                    .getBoolean(
-                            "combat.punish-logout",
-                            true
-                    )) {
-
-                plugin.getCombatManager()
-                        .handleQuit(player);
-            }
+            plugin.getCombatManager()
+                    .handleQuit(player);
         }
 
         /*
@@ -144,64 +143,76 @@ public class HCFListener implements Listener {
         Entity damager =
                 event.getDamager();
 
+        /*
+         * Por ahora CombatTag directo
+         * para ataques jugador → jugador.
+         */
         if (damager instanceof Player) {
 
             attacker =
                     (Player) damager;
         }
 
-        /*
-         * CombatTag.
-         */
-        if (attacker != null) {
-
-           plugin.getCombatManager()
-                   .tag(attacker);
-
-           plugin.getCombatManager()
-                    .tag(victim);
+        if (attacker == null) {
+            return;
         }
 
         /*
          * Friendly Fire.
          */
-        if (attacker != null) {
+        Faction attackerFaction =
+                plugin.getFactionManager()
+                        .getFaction(attacker);
 
-            Faction attackerFaction =
-                    plugin.getFactionManager()
-                            .getFaction(attacker);
+        Faction victimFaction =
+                plugin.getFactionManager()
+                        .getFaction(victim);
 
-            Faction victimFaction =
-                    plugin.getFactionManager()
-                            .getFaction(victim);
+        if (attackerFaction != null
+                && victimFaction != null
+                && attackerFaction
+                .getName()
+                .equalsIgnoreCase(
+                        victimFaction.getName()
+                )) {
 
-            if (attackerFaction != null
-                    && victimFaction != null
-                    && attackerFaction
-                    .getName()
-                    .equalsIgnoreCase(
-                            victimFaction.getName()
-                    )) {
+            boolean friendlyFire =
+                    plugin.getConfig()
+                            .getBoolean(
+                                    "factions.friendly-fire",
+                                    false
+                            );
 
-                boolean friendlyFire =
-                        plugin.getConfig()
-                                .getBoolean(
-                                        "factions.friendly-fire",
-                                        false
-                                );
+            if (!friendlyFire) {
 
-                if (!friendlyFire) {
+                event.setCancelled(true);
 
-                    event.setCancelled(true);
+                attacker.sendMessage(
+                        ChatColor.RED +
+                                "No puedes atacar a "
+                                + "un miembro de tu faction."
+                );
 
-                    attacker.sendMessage(
-                            ChatColor.RED +
-                                    "No puedes atacar a "
-                                    + "un miembro de tu faction."
-                    );
-                }
+                return;
             }
         }
+
+        /*
+         * No poner jugadores en combate
+         * si el daño ya fue cancelado.
+         */
+        if (event.isCancelled()) {
+            return;
+        }
+
+        /*
+         * CombatTag.
+         */
+        plugin.getCombatManager()
+                .tag(attacker);
+
+        plugin.getCombatManager()
+                .tag(victim);
     }
 
     @EventHandler
@@ -219,20 +230,11 @@ public class HCFListener implements Listener {
                 .addDeath(player);
 
         /*
-         * Quitar vida.
-         */
-        if (plugin.getConfig()
-                .getBoolean(
-                        "deathban.remove-life",
-                        true
-                )) {
-
-            plugin.getDeathbanManager()
-                    .removeLife(player, 1);
-        }
-
-        /*
          * Aplicar Deathban.
+         *
+         * IMPORTANTE:
+         * DeathbanManager se encarga
+         * de quitar la vida.
          */
         if (plugin.getConfig()
                 .getBoolean(
@@ -250,10 +252,17 @@ public class HCFListener implements Listener {
         Player killer =
                 player.getKiller();
 
-        if (killer != null) {
+        if (killer != null
+                && !killer.equals(player)) {
 
             plugin.getFactionManager()
                     .addKill(killer);
+
+            /*
+             * Quitar al killer del combat tag
+             * no es necesario; puede seguir
+             * en combate con otros jugadores.
+             */
 
             killer.sendMessage(
                     ChatColor.GREEN +
@@ -261,6 +270,15 @@ public class HCFListener implements Listener {
                             + player.getName()
                             + "!"
             );
+        }
+
+        /*
+         * Actualizar scoreboard del killer.
+         */
+        if (killer != null) {
+
+            plugin.getScoreboardManager()
+                    .update(killer);
         }
     }
 
