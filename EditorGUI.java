@@ -7,19 +7,19 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class EditorGUI implements Listener {
 
     private final HCFCore plugin;
 
-    private final Map<UUID, String> editingKit = new HashMap<>();
-    private final Map<UUID, String> editingKoth = new HashMap<>();
+    private static final String MAIN_TITLE =
+            ChatColor.DARK_GRAY + "⚙ HCF Editor";
 
     public EditorGUI(HCFCore plugin) {
         this.plugin = plugin;
@@ -27,295 +27,78 @@ public class EditorGUI implements Listener {
 
     public void openMain(Player player) {
 
-        if (!player.hasPermission("hcf.admin")) {
-            player.sendMessage(
-                    ChatColor.RED + "No tienes permiso."
-            );
+        if (!isAdmin(player)) {
+            deny(player);
             return;
         }
 
-        Inventory inv = Bukkit.createInventory(
-                null,
-                27,
-                ChatColor.DARK_GRAY + "HCF Editor"
-        );
+        Inventory inv =
+                Bukkit.createInventory(
+                        null,
+                        27,
+                        MAIN_TITLE
+                );
 
         inv.setItem(
                 10,
                 item(
                         Material.CHEST,
-                        ChatColor.GOLD + "✈ Airdrops",
-                        ChatColor.GRAY + "Editar Airdrops"
-                )
-        );
-
-        inv.setItem(
-                13,
-                item(
-                        Material.ENDER_CHEST,
-                        ChatColor.GREEN + "🎒 Kits",
-                        ChatColor.GRAY + "Editar Kits"
-                )
-        );
-
-        inv.setItem(
-                16,
-                item(
-                        Material.BEACON,
-                        ChatColor.RED + "🏰 KOTH",
-                        ChatColor.GRAY + "Editar KOTH"
-                )
-        );
-
-        player.openInventory(inv);
-    }
-
-    public void openKitMenu(Player player) {
-
-        Inventory inv = Bukkit.createInventory(
-                null,
-                27,
-                ChatColor.DARK_GREEN + "Kit Editor"
-        );
-
-        int slot = 10;
-
-        for (String kit :
-                plugin.getConfig()
-                        .getConfigurationSection("kits")
-                        .getKeys(false)) {
-
-            if (slot >= 17) {
-                break;
-            }
-
-            inv.setItem(
-                    slot++,
-                    item(
-                            Material.CHEST,
-                            ChatColor.GREEN + kit,
-                            ChatColor.GRAY
-                                    + "Click para editar"
-                    )
-            );
-        }
-
-        inv.setItem(
-                22,
-                item(
-                        Material.EMERALD,
-                        ChatColor.GREEN
-                                + "➕ Crear Kit",
+                        ChatColor.GOLD
+                                + "☁ Airdrops",
                         ChatColor.GRAY
-                                + "Crear un nuevo kit"
-                )
-        );
-
-        player.openInventory(inv);
-    }
-
-    public void openKothMenu(Player player) {
-
-        Inventory inv = Bukkit.createInventory(
-                null,
-                27,
-                ChatColor.DARK_RED + "KOTH Editor"
-        );
-
-        inv.setItem(
-                11,
-                item(
-                        Material.BEACON,
-                        ChatColor.RED
-                                + "🏰 KOTH Principal",
-                        ChatColor.GRAY
-                                + "Editar KOTH"
-                )
-        );
-
-        inv.setItem(
-                15,
-                item(
-                        Material.EMERALD,
-                        ChatColor.GREEN
-                                + "➕ Crear KOTH",
-                        ChatColor.GRAY
-                                + "Crear un nuevo KOTH"
-                )
-        );
-
-        player.openInventory(inv);
-    }
-
-    public void openKitEditor(
-            Player player,
-            String kitName
-    ) {
-
-        editingKit.put(
-                player.getUniqueId(),
-                kitName
-        );
-
-        Inventory inv = Bukkit.createInventory(
-                null,
-                54,
-                ChatColor.DARK_GREEN
-                        + "Editando Kit: "
-                        + kitName
-        );
-
-        player.openInventory(inv);
-
-        loadKitItems(
-                inv,
-                kitName
-        );
-    }
-
-    private void loadKitItems(
-            Inventory inv,
-            String kitName
-    ) {
-
-        List<String> items =
-                plugin.getConfig()
-                        .getStringList(
-                                "kits."
-                                        + kitName
-                                        + ".items"
-                        );
-
-        int slot = 0;
-
-        for (String entry : items) {
-
-            if (slot >= 45) {
-                break;
-            }
-
-            String[] parts =
-                    entry.split(":");
-
-            Material material =
-                    Material.matchMaterial(
-                            parts[0].toUpperCase()
-                    );
-
-            if (material == null) {
-                continue;
-            }
-
-            int amount = 1;
-
-            if (parts.length >= 2) {
-                try {
-                    amount =
-                            Integer.parseInt(
-                                    parts[1]
-                            );
-                } catch (NumberFormatException ignored) {
-                }
-            }
-
-            inv.setItem(
-                    slot++,
-                    new ItemStack(
-                            material,
-                            Math.max(1, amount)
-                    )
-            );
-        }
-
-        inv.setItem(
-                49,
-                item(
-                        Material.LIME_WOOL,
-                        ChatColor.GREEN
-                                + "💾 GUARDAR",
-                        ChatColor.GRAY
-                                + "Guardar el kit"
-                )
-        );
-
-        inv.setItem(
-                53,
-                item(
-                        Material.ARROW,
+                                + "Editar loot y configuración",
                         ChatColor.YELLOW
-                                + "← Volver",
-                        ChatColor.GRAY
-                                + "Volver al menú"
-                )
-        );
-    }
-
-    public void openKothEditor(Player player) {
-
-        editingKoth.put(
-                player.getUniqueId(),
-                "main"
-        );
-
-        Inventory inv = Bukkit.createInventory(
-                null,
-                27,
-                ChatColor.DARK_RED
-                        + "Editando KOTH"
-        );
-
-        inv.setItem(
-                10,
-                item(
-                        Material.COMPASS,
-                        ChatColor.AQUA
-                                + "📍 Ubicación",
-                        ChatColor.GRAY
-                                + "Usar mi ubicación"
+                                + "Click para abrir"
                 )
         );
 
         inv.setItem(
                 12,
                 item(
-                        Material.CLOCK,
-                        ChatColor.YELLOW
-                                + "⏱ Captura",
+                        Material.DIAMOND_SWORD,
+                        ChatColor.RED
+                                + "⚔ Kits",
                         ChatColor.GRAY
-                                + "Tiempo de captura"
+                                + "Crear y editar kits",
+                        ChatColor.YELLOW
+                                + "Click para abrir"
                 )
         );
 
         inv.setItem(
                 14,
                 item(
-                        Material.SLIME_BALL,
-                        ChatColor.GREEN
-                                + "📏 Radio",
+                        Material.NETHER_STAR,
+                        ChatColor.DARK_RED
+                                + "🏰 KOTH",
                         ChatColor.GRAY
-                                + "Radio de captura"
+                                + "Editar ubicación y recompensas",
+                        ChatColor.YELLOW
+                                + "Click para abrir"
                 )
         );
 
         inv.setItem(
                 16,
                 item(
-                        Material.CHEST,
-                        ChatColor.GOLD
-                                + "🎁 Recompensas",
+                        Material.ENCHANTED_BOOK,
+                        ChatColor.LIGHT_PURPLE
+                                + "📚 Aldeanos",
                         ChatColor.GRAY
-                                + "Editar recompensas"
+                                + "Editar trades de bibliotecarios",
+                        ChatColor.GRAY
+                                + "Encantamientos, niveles y precios",
+                        ChatColor.YELLOW
+                                + "Click para abrir"
                 )
         );
 
         inv.setItem(
                 22,
                 item(
-                        Material.LIME_WOOL,
-                        ChatColor.GREEN
-                                + "💾 GUARDAR",
-                        ChatColor.GRAY
-                                + "Guardar KOTH"
+                        Material.BARRIER,
+                        ChatColor.RED
+                                + "✖ Cerrar"
                 )
         );
 
@@ -325,33 +108,51 @@ public class EditorGUI implements Listener {
     private ItemStack item(
             Material material,
             String name,
-            String lore
+            String... lore
     ) {
 
-        ItemStack item =
+        ItemStack stack =
                 new ItemStack(material);
 
         ItemMeta meta =
-                item.getItemMeta();
+                stack.getItemMeta();
 
         if (meta != null) {
 
             meta.setDisplayName(name);
 
-            meta.setLore(
-                    Collections.singletonList(
-                            lore
-                    )
-            );
+            List<String> loreList =
+                    new ArrayList<>();
 
-            item.setItemMeta(meta);
+            for (String line : lore) {
+                loreList.add(line);
+            }
+
+            meta.setLore(loreList);
+
+            stack.setItemMeta(meta);
         }
 
-        return item;
+        return stack;
+    }
+
+    private boolean isAdmin(Player player) {
+
+        return player.hasPermission(
+                "hcf.admin"
+        );
+    }
+
+    private void deny(Player player) {
+
+        player.sendMessage(
+                ChatColor.RED
+                        + "No tienes permiso para usar el editor."
+        );
     }
 
     @EventHandler
-    public void onInventoryClick(
+    public void onClick(
             InventoryClickEvent event
     ) {
 
@@ -360,248 +161,65 @@ public class EditorGUI implements Listener {
             return;
         }
 
+        if (!event.getView()
+                .getTitle()
+                .equals(MAIN_TITLE)) {
+            return;
+        }
+
+        event.setCancelled(true);
+
         Player player =
                 (Player) event.getWhoClicked();
 
-        String title =
-                event.getView()
-                        .getTitle();
+        if (!isAdmin(player)) {
 
-        if (title.equals(
-                ChatColor.DARK_GRAY
-                        + "HCF Editor"
-        )) {
-
-            event.setCancelled(true);
-
-            if (event.getSlot() == 10) {
-
-                player.performCommand(
-                        "airdrop edit"
-                );
-
-            } else if (event.getSlot() == 13) {
-
-                openKitMenu(player);
-
-            } else if (event.getSlot() == 16) {
-
-                openKothMenu(player);
-            }
-
+            player.closeInventory();
             return;
         }
 
-        if (title.equals(
-                ChatColor.DARK_GREEN
-                        + "Kit Editor"
-        )) {
+        int slot =
+                event.getRawSlot();
 
-            event.setCancelled(true);
+        switch (slot) {
 
-            if (event.getSlot() == 22) {
+            case 10:
 
-                player.sendMessage(
-                        ChatColor.YELLOW
-                                + "La creación de kits "
-                                + "se añadirá en el siguiente "
-                                + "menú."
-                );
+                plugin.getGuiManager()
+                        .openAirdrop(player);
 
-                return;
-            }
+                break;
 
-            ItemStack clicked =
-                    event.getCurrentItem();
+            case 12:
 
-            if (clicked == null
-                    || !clicked.hasItemMeta()
-                    || clicked.getItemMeta()
-                    .getDisplayName() == null) {
-                return;
-            }
+                plugin.getGuiManager()
+                        .openKit(player);
 
-            String kit =
-                    ChatColor.stripColor(
-                            clicked.getItemMeta()
-                                    .getDisplayName()
-                    );
+                break;
 
-            if (plugin.getKitManager()
-                    .kitExists(kit)) {
+            case 14:
 
-                openKitEditor(
-                        player,
-                        kit
-                );
-            }
+                plugin.getGuiManager()
+                        .openKoth(player);
 
-            return;
-        }
+                break;
 
-        if (title.startsWith(
-                ChatColor.DARK_GREEN
-                        + "Editando Kit:"
-        )) {
+            case 16:
 
-            if (event.getSlot() == 49) {
+                plugin.getGuiManager()
+                        .openVillager(player);
 
-                event.setCancelled(true);
+                break;
 
-                saveKit(
-                        player
-                );
-
-                return;
-            }
-
-            if (event.getSlot() == 53) {
-
-                event.setCancelled(true);
-
-                openKitMenu(player);
-            }
-
-            return;
-        }
-
-        if (title.equals(
-                ChatColor.DARK_RED
-                        + "KOTH Editor"
-        )) {
-
-            event.setCancelled(true);
-
-            if (event.getSlot() == 11) {
-
-                openKothEditor(player);
-
-            } else if (event.getSlot() == 15) {
-
-                player.sendMessage(
-                        ChatColor.YELLOW
-                                + "La creación de KOTH "
-                                + "se añadirá después."
-                );
-            }
-
-            return;
-        }
-
-        if (title.equals(
-                ChatColor.DARK_RED
-                        + "Editando KOTH"
-        )) {
-
-            event.setCancelled(true);
-
-            if (event.getSlot() == 10) {
-
-                LocationStorage.setLocation(
-                        player
-                );
-
-                player.sendMessage(
-                        ChatColor.GREEN
-                                + "✓ Ubicación del KOTH "
-                                + "establecida."
-                );
-
-            } else if (event.getSlot() == 22) {
-
-                player.sendMessage(
-                        ChatColor.GREEN
-                                + "✓ KOTH guardado."
-                );
+            case 22:
 
                 player.closeInventory();
-            }
-        }
-    }
 
-    private void saveKit(Player player) {
+                break;
 
-        String kit =
-                editingKit.get(
-                        player.getUniqueId()
-                );
+            default:
 
-        if (kit == null) {
-            return;
-        }
-
-        List<String> items =
-                new ArrayList<>();
-
-        Inventory inv =
-                player.getOpenInventory()
-                        .getTopInventory();
-
-        for (int slot = 0; slot < 45; slot++) {
-
-            ItemStack item =
-                    inv.getItem(slot);
-
-            if (item == null
-                    || item.getType()
-                    == Material.AIR) {
-                continue;
-            }
-
-            items.add(
-                    item.getType().name()
-                            + ":"
-                            + item.getAmount()
-            );
-        }
-
-        plugin.getConfig().set(
-                "kits."
-                        + kit
-                        + ".items",
-                items
-        );
-
-        plugin.saveConfig();
-
-        player.sendMessage(
-                ChatColor.GREEN
-                        + "✓ Kit "
-                        + kit
-                        + " guardado correctamente."
-        );
-    }
-
-    @EventHandler
-    public void onInventoryClose(
-            InventoryCloseEvent event
-    ) {
-
-        Player player =
-                (Player) event.getPlayer();
-
-        String title =
-                event.getView()
-                        .getTitle();
-
-        if (title.startsWith(
-                ChatColor.DARK_GREEN
-                        + "Editando Kit:"
-        )) {
-
-            editingKit.remove(
-                    player.getUniqueId()
-            );
-        }
-
-        if (title.equals(
-                ChatColor.DARK_RED
-                        + "Editando KOTH"
-        )) {
-
-            editingKoth.remove(
-                    player.getUniqueId()
-            );
+                break;
         }
     }
 }
