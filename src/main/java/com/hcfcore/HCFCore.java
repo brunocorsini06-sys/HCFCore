@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.WorldBorder;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
 
 public class HCFCore extends JavaPlugin {
 
@@ -21,8 +22,13 @@ public class HCFCore extends JavaPlugin {
     private ScoreboardManager scoreboardManager;
     private VillagerManager villagerManager;
     private TabListManager tabListManager;
-
     private GUIManager guiManager;
+
+    /*
+     * Tareas principales de la Core.
+     */
+    private BukkitTask scoreboardTask;
+    private BukkitTask dtrTask;
 
     @Override
     public void onEnable() {
@@ -31,8 +37,9 @@ public class HCFCore extends JavaPlugin {
 
         saveDefaultConfig();
 
-        setupWorldBorder();
-
+        /*
+         * Managers.
+         */
         factionManager = new FactionManager(this);
         claimManager = new ClaimManager(this);
         combatManager = new CombatManager(this);
@@ -46,14 +53,30 @@ public class HCFCore extends JavaPlugin {
         villagerManager = new VillagerManager(this);
         tabListManager = new TabListManager(this);
 
-        getServer().getPluginManager().registerEvents(
-                new HCFListener(this),
-                this
-        );
+        /*
+         * WorldBorder.
+         */
+        setupWorldBorder();
 
+        /*
+         * Listener principal.
+         */
+        getServer()
+                .getPluginManager()
+                .registerEvents(
+                        new HCFListener(this),
+                        this
+                );
+
+        /*
+         * GUIs.
+         */
         guiManager = new GUIManager(this);
         guiManager.register();
 
+        /*
+         * Comandos.
+         */
         Commands commands = new Commands(this);
 
         registerCommand("f", commands);
@@ -72,23 +95,31 @@ public class HCFCore extends JavaPlugin {
 
         /*
          * SCOREBOARD
+         *
+         * Actualización cada segundo.
          */
-        Bukkit.getScheduler().runTaskTimer(
-                this,
-                () -> scoreboardManager.updateAll(),
-                20L,
-                20L
-        );
+        scoreboardTask =
+                Bukkit.getScheduler()
+                        .runTaskTimer(
+                                this,
+                                () -> scoreboardManager.updateAll(),
+                                20L,
+                                20L
+                        );
 
         /*
          * DTR
+         *
+         * Actualización cada segundo.
          */
-        Bukkit.getScheduler().runTaskTimer(
-                this,
-                () -> factionManager.regenerateDtr(),
-                20L,
-                20L
-        );
+        dtrTask =
+                Bukkit.getScheduler()
+                        .runTaskTimer(
+                                this,
+                                () -> factionManager.regenerateDtr(),
+                                20L,
+                                20L
+                        );
 
         /*
          * CLASES
@@ -112,12 +143,8 @@ public class HCFCore extends JavaPlugin {
         }
 
         /*
-         * TABLIST
-         *
-         * TabListManager ya inicia su
-         * propio sistema de actualización.
+         * Mensaje de inicio.
          */
-
         getLogger().info(
                 "================================="
         );
@@ -143,10 +170,22 @@ public class HCFCore extends JavaPlugin {
         );
 
         getLogger().info(
+                "        Scoreboard ACTIVADO"
+        );
+
+        getLogger().info(
+                "        Airdrops ACTIVADOS"
+        );
+
+        getLogger().info(
                 "================================="
         );
     }
 
+    /**
+     * Registra un comando definido
+     * en plugin.yml.
+     */
     private void registerCommand(
             String name,
             Commands commands
@@ -166,6 +205,9 @@ public class HCFCore extends JavaPlugin {
                 .setExecutor(commands);
     }
 
+    /**
+     * Configura el WorldBorder.
+     */
     private void setupWorldBorder() {
 
         String worldName =
@@ -190,51 +232,84 @@ public class HCFCore extends JavaPlugin {
         WorldBorder border =
                 world.getWorldBorder();
 
-        border.setCenter(
+        double centerX =
                 getConfig().getDouble(
                         "world.center-x",
                         0
-                ),
+                );
+
+        double centerZ =
                 getConfig().getDouble(
                         "world.center-z",
                         0
-                )
-        );
+                );
 
-        border.setSize(
+        double size =
                 getConfig().getDouble(
                         "world.border-size",
                         5000
-                )
+                );
+
+        if (size <= 0) {
+            size = 5000;
+        }
+
+        border.setCenter(
+                centerX,
+                centerZ
         );
 
+        border.setSize(size);
+
         getLogger().info(
-                "WorldBorder configurada en 5000x5000."
+                "WorldBorder configurada: "
+                        + size
+                        + "x"
+                        + size
+                        + " | Centro: "
+                        + centerX
+                        + ", "
+                        + centerZ
         );
     }
 
     @Override
     public void onDisable() {
 
-        if (airdropManager != null) {
+        /*
+         * Cancelar tareas propias.
+         */
+        if (scoreboardTask != null) {
+            scoreboardTask.cancel();
+        }
 
+        if (dtrTask != null) {
+            dtrTask.cancel();
+        }
+
+        /*
+         * Detener Airdrops.
+         */
+        if (airdropManager != null) {
             airdropManager.shutdown();
         }
 
+        /*
+         * Guardar datos.
+         */
         if (factionManager != null) {
-
             factionManager.saveAll();
         }
 
         if (economyManager != null) {
-
             economyManager.saveAll();
         }
 
         if (claimManager != null) {
-
             claimManager.saveAll();
         }
+
+        instance = null;
 
         getLogger().info(
                 "HCFCore desactivada correctamente."
@@ -242,72 +317,58 @@ public class HCFCore extends JavaPlugin {
     }
 
     public static HCFCore getInstance() {
-
         return instance;
     }
 
     public FactionManager getFactionManager() {
-
         return factionManager;
     }
 
     public ClaimManager getClaimManager() {
-
         return claimManager;
     }
 
     public CombatManager getCombatManager() {
-
         return combatManager;
     }
 
     public DeathbanManager getDeathbanManager() {
-
         return deathbanManager;
     }
 
     public EconomyManager getEconomyManager() {
-
         return economyManager;
     }
 
     public KitManager getKitManager() {
-
         return kitManager;
     }
 
     public ClassManager getClassManager() {
-
         return classManager;
     }
 
     public AirdropManager getAirdropManager() {
-
         return airdropManager;
     }
 
     public KothManager getKothManager() {
-
         return kothManager;
     }
 
     public ScoreboardManager getScoreboardManager() {
-
         return scoreboardManager;
     }
 
     public VillagerManager getVillagerManager() {
-
         return villagerManager;
     }
 
     public TabListManager getTabListManager() {
-
         return tabListManager;
     }
 
     public GUIManager getGuiManager() {
-
         return guiManager;
     }
 }
