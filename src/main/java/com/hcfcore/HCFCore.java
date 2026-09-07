@@ -10,6 +10,8 @@ public class HCFCore extends JavaPlugin {
 
     private static HCFCore instance;
 
+    private DatabaseManager databaseManager;
+
     private FactionManager factionManager;
     private ClaimManager claimManager;
     private CombatManager combatManager;
@@ -35,6 +37,26 @@ public class HCFCore extends JavaPlugin {
         saveDefaultConfig();
 
         getLogger().info("Iniciando HCFCore...");
+
+        /*
+         * ==============================
+         * DATABASE
+         * ==============================
+         */
+
+        databaseManager = new DatabaseManager(this);
+
+        if (!databaseManager.connect()) {
+
+            getLogger().severe(
+                    "No se pudo iniciar la base de datos."
+            );
+
+            getServer().getPluginManager()
+                    .disablePlugin(this);
+
+            return;
+        }
 
         /*
          * ==============================
@@ -258,6 +280,10 @@ public class HCFCore extends JavaPlugin {
         );
 
         getLogger().info(
+                "        SQLite ACTIVADO"
+        );
+
+        getLogger().info(
                 "        EditGUI ACTIVADO"
         );
 
@@ -437,6 +463,16 @@ public class HCFCore extends JavaPlugin {
 
         /*
          * ==============================
+         * DATABASE
+         * ==============================
+         */
+
+        if (databaseManager != null) {
+            databaseManager.disconnect();
+        }
+
+        /*
+         * ==============================
          * INSTANCE
          * ==============================
          */
@@ -450,6 +486,10 @@ public class HCFCore extends JavaPlugin {
 
     public static HCFCore getInstance() {
         return instance;
+    }
+
+    public DatabaseManager getDatabaseManager() {
+        return databaseManager;
     }
 
     public FactionManager getFactionManager() {
