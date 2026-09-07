@@ -31,7 +31,7 @@ public class Faction {
         this.name = name;
         this.leader = leader;
 
-        this.dtr = startingDtr;
+        this.dtr = Math.max(0.0, startingDtr);
         this.balance = 0.0;
 
         if (leader != null) {
@@ -164,11 +164,66 @@ public class Faction {
 
     public void setDtr(double dtr) {
 
-        if (Double.isNaN(dtr) || Double.isInfinite(dtr)) {
+        if (Double.isNaN(dtr)
+                || Double.isInfinite(dtr)) {
             return;
         }
 
-        this.dtr = dtr;
+        this.dtr = Math.max(0.0, dtr);
+    }
+
+    /**
+     * Comprueba si la faction está Raidable.
+     *
+     * Una faction con DTR 0 o inferior
+     * se considera Raidable.
+     */
+    public boolean isRaidable() {
+        return dtr <= 0.0;
+    }
+
+    /**
+     * Indica si la faction tiene DTR positivo.
+     */
+    public boolean isDtrPositive() {
+        return dtr > 0.0;
+    }
+
+    /**
+     * Resta DTR de forma segura.
+     */
+    public void removeDtr(double amount) {
+
+        if (Double.isNaN(amount)
+                || Double.isInfinite(amount)) {
+            return;
+        }
+
+        if (amount <= 0.0) {
+            return;
+        }
+
+        dtr = Math.max(
+                0.0,
+                dtr - amount
+        );
+    }
+
+    /**
+     * Añade DTR de forma segura.
+     */
+    public void addDtr(double amount) {
+
+        if (Double.isNaN(amount)
+                || Double.isInfinite(amount)) {
+            return;
+        }
+
+        if (amount <= 0.0) {
+            return;
+        }
+
+        dtr += amount;
     }
 
     // =========================================================
@@ -181,16 +236,21 @@ public class Faction {
 
     public void setBalance(double balance) {
 
-        if (Double.isNaN(balance) || Double.isInfinite(balance)) {
+        if (Double.isNaN(balance)
+                || Double.isInfinite(balance)) {
             return;
         }
 
-        this.balance = Math.max(0.0, balance);
+        this.balance = Math.max(
+                0.0,
+                balance
+        );
     }
 
     public void deposit(double amount) {
 
-        if (Double.isNaN(amount) || Double.isInfinite(amount)) {
+        if (Double.isNaN(amount)
+                || Double.isInfinite(amount)) {
             return;
         }
 
@@ -203,7 +263,8 @@ public class Faction {
 
     public boolean withdraw(double amount) {
 
-        if (Double.isNaN(amount) || Double.isInfinite(amount)) {
+        if (Double.isNaN(amount)
+                || Double.isInfinite(amount)) {
             return false;
         }
 
@@ -233,7 +294,9 @@ public class Faction {
             return;
         }
 
-        allies.add(faction.toLowerCase());
+        allies.add(
+                faction.toLowerCase()
+        );
     }
 
     public void removeAlly(String faction) {
@@ -242,7 +305,9 @@ public class Faction {
             return;
         }
 
-        allies.remove(faction.toLowerCase());
+        allies.remove(
+                faction.toLowerCase()
+        );
     }
 
     public boolean isAlly(String faction) {
@@ -251,7 +316,9 @@ public class Faction {
             return false;
         }
 
-        return allies.contains(faction.toLowerCase());
+        return allies.contains(
+                faction.toLowerCase()
+        );
     }
 
     // =========================================================
@@ -268,7 +335,9 @@ public class Faction {
             return;
         }
 
-        enemies.add(faction.toLowerCase());
+        enemies.add(
+                faction.toLowerCase()
+        );
     }
 
     public void removeEnemy(String faction) {
@@ -277,7 +346,9 @@ public class Faction {
             return;
         }
 
-        enemies.remove(faction.toLowerCase());
+        enemies.remove(
+                faction.toLowerCase()
+        );
     }
 
     public boolean isEnemy(String faction) {
@@ -286,7 +357,9 @@ public class Faction {
             return false;
         }
 
-        return enemies.contains(faction.toLowerCase());
+        return enemies.contains(
+                faction.toLowerCase()
+        );
     }
 
     // =========================================================
@@ -304,7 +377,8 @@ public class Faction {
 
     public void setHome(Location home) {
 
-        if (home == null || home.getWorld() == null) {
+        if (home == null
+                || home.getWorld() == null) {
             return;
         }
 
@@ -316,6 +390,7 @@ public class Faction {
     }
 
     public boolean hasHome() {
-        return home != null && home.getWorld() != null;
+        return home != null
+                && home.getWorld() != null;
     }
 }
