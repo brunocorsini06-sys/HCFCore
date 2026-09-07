@@ -14,7 +14,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
@@ -25,7 +24,9 @@ public class AirdropManager {
 
     private Location activeDrop;
     private BossBar bossBar;
-    private BukkitTask task;
+
+    private BukkitTask schedulerTask;
+    private BukkitTask activeDropTask;
 
     public AirdropManager(HCFCore plugin) {
         this.plugin = plugin;
@@ -35,6 +36,17 @@ public class AirdropManager {
      * Inicia el sistema automático de Airdrops.
      */
     public void startScheduler() {
+
+        if (schedulerTask != null) {
+            return;
+        }
+
+        if (!plugin.getConfig().getBoolean(
+                "airdrop.enabled",
+                true
+        )) {
+            return;
+        }
 
         int interval =
                 plugin.getConfig()
@@ -49,18 +61,20 @@ public class AirdropManager {
                         interval * 60L * 20L
                 );
 
-        task = Bukkit.getScheduler().runTaskTimer(
-                plugin,
-                this::spawnAirdrop,
-                ticks,
-                ticks
-        );
+        schedulerTask =
+                Bukkit.getScheduler().runTaskTimer(
+                        plugin,
+                        this::spawnAirdrop,
+                        ticks,
+                        ticks
+                );
     }
 
     /**
      * Genera un Airdrop aleatorio.
      *
-     * NO manda mensaje al chat.
+     * No manda mensaje al chat.
+     * La información se muestra mediante BossBar.
      */
     public void spawnAirdrop() {
 
@@ -77,7 +91,6 @@ public class AirdropManager {
             return;
         }
 
-        // Si ya existe uno, lo eliminamos.
         removeActiveDrop();
 
         int radius =
@@ -86,6 +99,8 @@ public class AirdropManager {
                                 "airdrop.radius",
                                 2450
                         );
+
+        radius = Math.max(1, radius);
 
         int x =
                 random.nextInt(
@@ -111,9 +126,7 @@ public class AirdropManager {
         Block block =
                 location.getBlock();
 
-        block.setType(
-                Material.CHEST
-        );
+        block.setType(Material.CHEST);
 
         if (!(block.getState() instanceof Chest)) {
             return;
@@ -135,64 +148,67 @@ public class AirdropManager {
                                 180
                         );
 
+        lifetime = Math.max(10, lifetime);
+
         final long start =
                 System.currentTimeMillis();
 
         final long duration =
                 lifetime * 1000L;
 
-        task = Bukkit.getScheduler()
-                .runTaskTimer(
-                        plugin,
-                        () -> {
+        activeDropTask =
+                Bukkit.getScheduler()
+                        .runTaskTimer(
+                                plugin,
+                                () -> {
 
-                            if (activeDrop == null) {
-                                return;
-                            }
+                                    if (activeDrop == null) {
+                                        return;
+                                    }
 
-                            long elapsed =
-                                    System.currentTimeMillis()
-                                            - start;
+                                    long elapsed =
+                                            System.currentTimeMillis()
+                                                    - start;
 
-                            long remaining =
-                                    duration - elapsed;
+                                    long remaining =
+                                            duration - elapsed;
 
-                            double progress =
-                                    Math.max(
-                                            0.0,
-                                            Math.min(
-                                                    1.0,
-                                                    remaining
-                                                            / (double)
-                                                            duration
-                                            )
-                                    );
+                                    double progress =
+                                            Math.max(
+                                                    0.0,
+                                                    Math.min(
+                                                            1.0,
+                                                            remaining
+                                                                    / (double)
+                                                                    duration
+                                                    )
+                                            );
 
-                            if (bossBar != null) {
+                                    if (bossBar != null) {
 
-                                bossBar.setProgress(
-                                        progress
-                                );
+                                        bossBar.setProgress(
+                                                progress
+                                        );
 
-                                bossBar.setTitle(
-                                        ChatColor.GOLD
-                                                + "✈ AIRDROP "
-                                                + ChatColor.WHITE
-                                                + "| "
-                                                + formatSeconds(
-                                                        remaining
-                                                )
-                                );
-                            }
+                                        bossBar.setTitle(
+                                                ChatColor.GOLD
+                                                        + "✈ AIRDROP "
+                                                        + ChatColor.WHITE
+                                                        + "| "
+                                                        + formatSeconds(
+                                                                remaining
+                                                        )
+                                        );
+                                    }
 
-                            if (remaining <= 0) {
-                                removeActiveDrop();
-                            }
+                                    if (remaining <= 0) {
+                                        removeActiveDrop();
+                                    }
 
-                        },
-                        0L,
-                        20L
-                );
+                                },
+                                0L,
+                                20L
+                        );
     }
 
     /**
@@ -217,7 +233,7 @@ public class AirdropManager {
 
             Material material =
                     Material.matchMaterial(
-                            parts[0].toUpperCase()
+                            parts[0].trim().toUpperCase()
                     );
 
             if (material == null) {
@@ -227,20 +243,28 @@ public class AirdropManager {
             int amount;
 
             try {
+
                 amount =
-                        Integer.parseInt(parts[1]);
+                        Integer.parseInt(
+                                parts[1].trim()
+                        );
+
             } catch (NumberFormatException e) {
+
                 amount = 1;
             }
+
+            amount =
+                    Math.max(
+                            1,
+                            amount
+                    );
 
             chest.getInventory()
                     .addItem(
                             new ItemStack(
                                     material,
-                                    Math.max(
-                                            1,
-                                            amount
-                                    )
+                                    amount
                             )
                     );
         }
@@ -277,6 +301,12 @@ public class AirdropManager {
      */
     public void removeActiveDrop() {
 
+        if (activeDropTask != null) {
+
+            activeDropTask.cancel();
+            activeDropTask = null;
+        }
+
         if (activeDrop != null) {
 
             Block block =
@@ -294,13 +324,28 @@ public class AirdropManager {
         activeDrop = null;
 
         if (bossBar != null) {
+
             bossBar.removeAll();
             bossBar = null;
         }
     }
 
     /**
-     * Devuelve el mundo del servidor.
+     * Detiene completamente el sistema de Airdrops.
+     */
+    public void shutdown() {
+
+        if (schedulerTask != null) {
+
+            schedulerTask.cancel();
+            schedulerTask = null;
+        }
+
+        removeActiveDrop();
+    }
+
+    /**
+     * Devuelve el mundo configurado.
      */
     private World getWorld() {
 
