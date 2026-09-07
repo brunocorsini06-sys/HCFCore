@@ -34,7 +34,9 @@ public class Faction {
         this.dtr = startingDtr;
         this.balance = 0.0;
 
-        members.add(leader);
+        if (leader != null) {
+            members.add(leader);
+        }
     }
 
     // =========================================================
@@ -47,6 +49,19 @@ public class Faction {
 
     public UUID getLeader() {
         return leader;
+    }
+
+    // =========================================================
+    // LÍDER
+    // =========================================================
+
+    public boolean isLeader(UUID uuid) {
+
+        if (uuid == null) {
+            return false;
+        }
+
+        return leader != null && leader.equals(uuid);
     }
 
     // =========================================================
@@ -85,7 +100,7 @@ public class Faction {
             return;
         }
 
-        // El líder no debe poder ser eliminado
+        // El líder no puede ser eliminado
         if (isLeader(uuid)) {
             return;
         }
@@ -128,6 +143,11 @@ public class Faction {
     public void demote(UUID uuid) {
 
         if (uuid == null) {
+            return;
+        }
+
+        // El líder nunca puede ser demoteado
+        if (isLeader(uuid)) {
             return;
         }
 
