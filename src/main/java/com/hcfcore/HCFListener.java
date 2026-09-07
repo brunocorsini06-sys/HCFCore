@@ -228,7 +228,7 @@ public class HCFListener implements Listener {
                 )) {
 
             plugin.getDeathbanManager()
-                    .removeLife(player);
+                    .removeLife(player, 1);
         }
 
         /*
