@@ -21,16 +21,14 @@ public class HCFCore extends JavaPlugin {
     private ScoreboardManager scoreboardManager;
     private VillagerManager villagerManager;
 
+    private GUIManager guiManager;
+
     @Override
     public void onEnable() {
+
         instance = this;
 
         saveDefaultConfig();
-        saveResource("messages.yml", false);
-        saveResource("kits.yml", false);
-        saveResource("airdrops.yml", false);
-        saveResource("koth.yml", false);
-        saveResource("factions.yml", false);
 
         setupWorldBorder();
 
@@ -46,26 +44,42 @@ public class HCFCore extends JavaPlugin {
         scoreboardManager = new ScoreboardManager(this);
         villagerManager = new VillagerManager(this);
 
+        /*
+         * Registramos el listener principal.
+         */
         getServer().getPluginManager().registerEvents(
-                new HCFListener(this), this
+                new HCFListener(this),
+                this
         );
 
+        /*
+         * Registramos los EditGUI.
+         */
+        guiManager = new GUIManager(this);
+        guiManager.register();
+
+        /*
+         * Registramos comandos.
+         */
         Commands commands = new Commands(this);
 
-        getCommand("f").setExecutor(commands);
-        getCommand("hcf").setExecutor(commands);
-        getCommand("claim").setExecutor(commands);
-        getCommand("combat").setExecutor(commands);
-        getCommand("pay").setExecutor(commands);
-        getCommand("kit").setExecutor(commands);
-        getCommand("class").setExecutor(commands);
-        getCommand("spawn").setExecutor(commands);
-        getCommand("koth").setExecutor(commands);
-        getCommand("airdrop").setExecutor(commands);
-        getCommand("lives").setExecutor(commands);
-        getCommand("deathban").setExecutor(commands);
-        getCommand("balance").setExecutor(commands);
+        registerCommand("f", commands);
+        registerCommand("hcf", commands);
+        registerCommand("claim", commands);
+        registerCommand("combat", commands);
+        registerCommand("pay", commands);
+        registerCommand("kit", commands);
+        registerCommand("class", commands);
+        registerCommand("spawn", commands);
+        registerCommand("koth", commands);
+        registerCommand("airdrop", commands);
+        registerCommand("lives", commands);
+        registerCommand("deathban", commands);
+        registerCommand("balance", commands);
 
+        /*
+         * Scoreboard.
+         */
         Bukkit.getScheduler().runTaskTimer(
                 this,
                 () -> scoreboardManager.updateAll(),
@@ -73,6 +87,9 @@ public class HCFCore extends JavaPlugin {
                 20L
         );
 
+        /*
+         * Regeneración DTR.
+         */
         Bukkit.getScheduler().runTaskTimer(
                 this,
                 () -> factionManager.regenerateDtr(),
@@ -80,37 +97,110 @@ public class HCFCore extends JavaPlugin {
                 20L
         );
 
-        if (getConfig().getBoolean("airdrop.enabled", true)) {
+        /*
+         * Clases HCF.
+         */
+        classManager.startTask();
+
+        /*
+         * Limpieza CombatTag.
+         */
+        combatManager.startCleanupTask();
+
+        /*
+         * Airdrops.
+         */
+        if (getConfig().getBoolean(
+                "airdrop.enabled",
+                true
+        )) {
             airdropManager.startScheduler();
         }
 
-        getLogger().info("=================================");
-        getLogger().info("        HCFCore ACTIVADO");
-        getLogger().info("        Version 2.0.0");
-        getLogger().info("        Paper 1.20.4");
-        getLogger().info("=================================");
+        getLogger().info(
+                "================================="
+        );
+
+        getLogger().info(
+                "        HCFCore ACTIVADO"
+        );
+
+        getLogger().info(
+                "        Version 2.0.0"
+        );
+
+        getLogger().info(
+                "        Paper 1.20.4"
+        );
+
+        getLogger().info(
+                "        EditGUI ACTIVADO"
+        );
+
+        getLogger().info(
+                "================================="
+        );
     }
 
-    private void setupWorldBorder() {
-        String worldName = getConfig().getString("world.name", "world");
-        World world = Bukkit.getWorld(worldName);
+    private void registerCommand(
+            String name,
+            Commands commands
+    ) {
 
-        if (world == null) {
+        if (getCommand(name) == null) {
+
             getLogger().warning(
-                    "No se encontró el mundo: " + worldName
+                    "Comando no encontrado en plugin.yml: "
+                            + name
             );
+
             return;
         }
 
-        WorldBorder border = world.getWorldBorder();
+        getCommand(name)
+                .setExecutor(commands);
+    }
+
+    private void setupWorldBorder() {
+
+        String worldName =
+                getConfig().getString(
+                        "world.name",
+                        "world"
+                );
+
+        World world =
+                Bukkit.getWorld(worldName);
+
+        if (world == null) {
+
+            getLogger().warning(
+                    "No se encontró el mundo: "
+                            + worldName
+            );
+
+            return;
+        }
+
+        WorldBorder border =
+                world.getWorldBorder();
 
         border.setCenter(
-                getConfig().getDouble("world.center-x", 0),
-                getConfig().getDouble("world.center-z", 0)
+                getConfig().getDouble(
+                        "world.center-x",
+                        0
+                ),
+                getConfig().getDouble(
+                        "world.center-z",
+                        0
+                )
         );
 
         border.setSize(
-                getConfig().getDouble("world.border-size", 5000)
+                getConfig().getDouble(
+                        "world.border-size",
+                        5000
+                )
         );
 
         getLogger().info(
@@ -120,6 +210,11 @@ public class HCFCore extends JavaPlugin {
 
     @Override
     public void onDisable() {
+
+        if (airdropManager != null) {
+            airdropManager.shutdown();
+        }
+
         if (factionManager != null) {
             factionManager.saveAll();
         }
@@ -132,7 +227,9 @@ public class HCFCore extends JavaPlugin {
             claimManager.saveAll();
         }
 
-        getLogger().info("HCFCore desactivada correctamente.");
+        getLogger().info(
+                "HCFCore desactivada correctamente."
+        );
     }
 
     public static HCFCore getInstance() {
@@ -181,5 +278,9 @@ public class HCFCore extends JavaPlugin {
 
     public VillagerManager getVillagerManager() {
         return villagerManager;
+    }
+
+    public GUIManager getGuiManager() {
+        return guiManager;
     }
 }
