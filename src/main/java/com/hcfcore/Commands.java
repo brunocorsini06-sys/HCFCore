@@ -154,7 +154,7 @@ public class Commands implements CommandExecutor {
             Player player = (Player) sender;
 
             plugin.getGuiManager()
-                    .openEditor(player);
+                    .openMain(player);
 
             return true;
         }
