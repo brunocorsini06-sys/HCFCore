@@ -7,12 +7,18 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 
 public class KitEditorGUI implements Listener {
 
@@ -26,6 +32,9 @@ public class KitEditorGUI implements Listener {
 
     private static final String COOLDOWN_TITLE =
             ChatColor.DARK_AQUA + "⏱ Kit Cooldown";
+
+    private final Set<UUID> waitingForKitName =
+            new HashSet<>();
 
     public KitEditorGUI(HCFCore plugin) {
         this.plugin = plugin;
@@ -46,7 +55,8 @@ public class KitEditorGUI implements Listener {
 
         int slot = 10;
 
-        if (plugin.getConfig().getConfigurationSection("kits") != null) {
+        if (plugin.getConfig()
+                .getConfigurationSection("kits") != null) {
 
             for (String kit :
                     plugin.getConfig()
@@ -57,12 +67,10 @@ public class KitEditorGUI implements Listener {
                     break;
                 }
 
-                Material icon = getKitIcon(kit);
-
                 inv.setItem(
                         slot,
                         item(
-                                icon,
+                                getKitIcon(kit),
                                 ChatColor.GREEN + kit,
                                 ChatColor.GRAY +
                                         "Click para editar"
@@ -79,7 +87,7 @@ public class KitEditorGUI implements Listener {
                         Material.EMERALD,
                         ChatColor.GREEN + "➕ Crear Kit",
                         ChatColor.GRAY +
-                                "Crear un nuevo kit"
+                                "Crear un kit nuevo"
                 )
         );
 
@@ -106,8 +114,10 @@ public class KitEditorGUI implements Listener {
             return;
         }
 
+        kitName = kitName.toLowerCase(Locale.ROOT);
+
         String path =
-                "kits." + kitName.toLowerCase();
+                "kits." + kitName;
 
         if (!plugin.getConfig().contains(path)) {
 
@@ -154,7 +164,7 @@ public class KitEditorGUI implements Listener {
                         Material.LIME_WOOL,
                         ChatColor.GREEN + "💾 GUARDAR",
                         ChatColor.GRAY +
-                                "Guardar objetos del kit"
+                                "Guardar objetos"
                 )
         );
 
@@ -247,11 +257,7 @@ public class KitEditorGUI implements Listener {
                         title.substring(
                                 PREFIX.length()
                         )
-                );
-
-        String path =
-                "kits."
-                        + kitName.toLowerCase();
+                ).toLowerCase(Locale.ROOT);
 
         Inventory inv =
                 player.getOpenInventory()
@@ -280,7 +286,9 @@ public class KitEditorGUI implements Listener {
         }
 
         plugin.getConfig().set(
-                path + ".items",
+                "kits."
+                        + kitName
+                        + ".items",
                 items
         );
 
@@ -290,7 +298,77 @@ public class KitEditorGUI implements Listener {
                 ChatColor.GREEN +
                         "✓ Kit "
                         + kitName
-                        + " guardado."
+                        + " guardado correctamente."
+        );
+    }
+
+    private void createKit(
+            Player player,
+            String name
+    ) {
+
+        name =
+                name.toLowerCase(Locale.ROOT)
+                        .replace(" ", "");
+
+        if (!name.matches("[a-z0-9_-]+")) {
+
+            player.sendMessage(
+                    ChatColor.RED +
+                            "Nombre inválido."
+            );
+
+            player.sendMessage(
+                    ChatColor.GRAY +
+                            "Usá solamente letras, números, "
+                            + "_ o -."
+            );
+
+            return;
+        }
+
+        if (plugin.getConfig()
+                .contains("kits." + name)) {
+
+            player.sendMessage(
+                    ChatColor.RED +
+                            "Ese kit ya existe."
+            );
+
+            return;
+        }
+
+        plugin.getConfig().set(
+                "kits."
+                        + name
+                        + ".cooldown-seconds",
+                86400
+        );
+
+        plugin.getConfig().set(
+                "kits."
+                        + name
+                        + ".items",
+                new ArrayList<String>()
+        );
+
+        plugin.saveConfig();
+
+        player.sendMessage(
+                ChatColor.GREEN +
+                        "✓ Kit "
+                        + name
+                        + " creado."
+        );
+
+        player.sendMessage(
+                ChatColor.GRAY +
+                        "Cooldown inicial: 24 horas."
+        );
+
+        openEditor(
+                player,
+                name
         );
     }
 
@@ -369,7 +447,7 @@ public class KitEditorGUI implements Listener {
 
         String path =
                 "kits."
-                        + kitName.toLowerCase()
+                        + kitName.toLowerCase(Locale.ROOT)
                         + ".cooldown-seconds";
 
         long current =
@@ -394,9 +472,7 @@ public class KitEditorGUI implements Listener {
 
         player.sendMessage(
                 ChatColor.GREEN +
-                        "✓ Cooldown de "
-                        + kitName
-                        + ": "
+                        "✓ Cooldown: "
                         + formatTime(newValue)
         );
 
@@ -543,8 +619,7 @@ public class KitEditorGUI implements Listener {
                 (Player) event.getWhoClicked();
 
         String title =
-                event.getView()
-                        .getTitle();
+                event.getView().getTitle();
 
         if (title.equals(MAIN_TITLE)) {
 
@@ -557,21 +632,39 @@ public class KitEditorGUI implements Listener {
 
             if (event.getSlot() == 22) {
 
+                player.closeInventory();
+
+                waitingForKitName.add(
+                        player.getUniqueId()
+                );
+
                 player.sendMessage(
-                        ChatColor.YELLOW +
-                                "Para crear un kit nuevo:"
+                        ChatColor.GREEN +
+                                "➕ Escribí en el chat el nombre "
+                                + "del nuevo kit."
                 );
 
                 player.sendMessage(
                         ChatColor.GRAY +
-                                "Usaremos un sistema de creación "
-                                + "por nombre en el siguiente paso."
+                                "Ejemplo: "
+                                + ChatColor.WHITE
+                                + "Miner"
+                );
+
+                player.sendMessage(
+                        ChatColor.GRAY +
+                                "Escribí "
+                                + ChatColor.RED
+                                + "cancelar"
+                                + ChatColor.GRAY
+                                + " para cancelar."
                 );
 
                 return;
             }
 
             if (event.getSlot() == 26) {
+
                 player.closeInventory();
                 return;
             }
@@ -648,9 +741,9 @@ public class KitEditorGUI implements Listener {
             }
 
             /*
-             * Slots 0-44 son editables.
-             * El jugador puede colocar y quitar
-             * objetos libremente.
+             * Slots 0-44:
+             * El administrador puede colocar,
+             * quitar y modificar objetos.
              */
 
             return;
@@ -724,5 +817,71 @@ public class KitEditorGUI implements Listener {
                     break;
             }
         }
+    }
+
+    @EventHandler
+    public void onChat(
+            AsyncPlayerChatEvent event
+    ) {
+
+        Player player =
+                event.getPlayer();
+
+        UUID uuid =
+                player.getUniqueId();
+
+        if (!waitingForKitName.contains(uuid)) {
+            return;
+        }
+
+        event.setCancelled(true);
+
+        String message =
+                event.getMessage().trim();
+
+        waitingForKitName.remove(uuid);
+
+        if (message.equalsIgnoreCase("cancelar")) {
+
+            player.sendMessage(
+                    ChatColor.YELLOW +
+                            "Creación de kit cancelada."
+            );
+
+            Bukkit.getScheduler().runTask(
+                    plugin,
+                    () -> open(player)
+            );
+
+            return;
+        }
+
+        Bukkit.getScheduler().runTask(
+                plugin,
+                () -> createKit(
+                        player,
+                        message
+                )
+        );
+    }
+
+    @EventHandler
+    public void onClose(
+            InventoryCloseEvent event
+    ) {
+
+        if (!(event.getPlayer()
+                instanceof Player)) {
+            return;
+        }
+
+        Player player =
+                (Player) event.getPlayer();
+
+        /*
+         * No guardamos automáticamente.
+         * El kit solamente se guarda al pulsar
+         * GUARDAR.
+         */
     }
 }
