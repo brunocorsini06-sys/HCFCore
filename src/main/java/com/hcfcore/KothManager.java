@@ -12,11 +12,15 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class KothManager {
 
     private final HCFCore plugin;
 
     private Location location;
+
     private boolean active;
 
     private Player capturingPlayer;
@@ -27,10 +31,12 @@ public class KothManager {
 
     public KothManager(HCFCore plugin) {
         this.plugin = plugin;
-
         loadLocation();
     }
 
+    /**
+     * Inicia el KOTH.
+     */
     public void startKoth() {
 
         if (active) {
@@ -40,10 +46,11 @@ public class KothManager {
         loadLocation();
 
         if (location == null) {
+
             plugin.getLogger().warning(
-                    "No se puede iniciar KOTH: "
-                            + "no hay ubicación configurada."
+                    "No se puede iniciar KOTH: no hay ubicación configurada."
             );
+
             return;
         }
 
@@ -60,14 +67,25 @@ public class KothManager {
                 20L
         );
 
+        Bukkit.broadcastMessage(
+                ChatColor.GOLD
+                        + "🏰 KOTH "
+                        + ChatColor.YELLOW
+                        + "ha comenzado!"
+        );
+
         plugin.getLogger().info(
                 "KOTH iniciado."
         );
     }
 
+    /**
+     * Detiene el KOTH.
+     */
     public void stopKoth() {
 
         active = false;
+
         capturingPlayer = null;
         captureStart = 0L;
 
@@ -83,19 +101,34 @@ public class KothManager {
         );
     }
 
+    /**
+     * Tick principal del KOTH.
+     */
     private void tick() {
 
         if (!active || location == null) {
             return;
         }
 
-        Player player =
-                findCapturingPlayer();
+        if (location.getWorld() == null) {
+            stopKoth();
+            return;
+        }
 
-        if (player == null) {
+        List<Player> players =
+                getPlayersInside();
+
+        /*
+         * Nadie dentro.
+         */
+        if (players.isEmpty()) {
 
             capturingPlayer = null;
             captureStart = 0L;
+
+            if (bossBar != null) {
+                bossBar.setProgress(0.0);
+            }
 
             updateBossBar(
                     "🏰 KOTH | Esperando jugador..."
@@ -104,16 +137,57 @@ public class KothManager {
             return;
         }
 
+        /*
+         * Más de un jugador:
+         * KOTH contestado.
+         */
+        if (players.size() > 1) {
+
+            capturingPlayer = null;
+            captureStart = 0L;
+
+            if (bossBar != null) {
+                bossBar.setProgress(0.0);
+            }
+
+            String names = getPlayerNames(players);
+
+            updateBossBar(
+                    "🏰 KOTH | ⚔ CONTESTADO | " + names
+            );
+
+            return;
+        }
+
+        /*
+         * Solo un jugador dentro.
+         */
+        Player player = players.get(0);
+
         if (capturingPlayer == null
-                || !capturingPlayer
-                .getUniqueId()
-                .equals(
-                        player.getUniqueId()
-                )) {
+                || !capturingPlayer.getUniqueId()
+                .equals(player.getUniqueId())) {
 
             capturingPlayer = player;
+
             captureStart =
                     System.currentTimeMillis();
+        }
+
+        /*
+         * Si el jugador murió/desconectó.
+         */
+        if (!player.isOnline()
+                || player.isDead()) {
+
+            capturingPlayer = null;
+            captureStart = 0L;
+
+            if (bossBar != null) {
+                bossBar.setProgress(0.0);
+            }
+
+            return;
         }
 
         int captureSeconds =
@@ -121,6 +195,10 @@ public class KothManager {
                         "koth.capture-seconds",
                         120
                 );
+
+        if (captureSeconds <= 0) {
+            captureSeconds = 120;
+        }
 
         long elapsed =
                 System.currentTimeMillis()
@@ -130,12 +208,15 @@ public class KothManager {
                 captureSeconds * 1000L;
 
         double progress =
+                elapsed
+                        / (double) required;
+
+        progress =
                 Math.max(
                         0.0,
                         Math.min(
                                 1.0,
-                                elapsed
-                                        / (double) required
+                                progress
                         )
                 );
 
@@ -163,10 +244,18 @@ public class KothManager {
         }
     }
 
-    private Player findCapturingPlayer() {
+    /**
+     * Obtiene todos los jugadores dentro del radio.
+     */
+    private List<Player> getPlayersInside() {
 
-        if (location.getWorld() == null) {
-            return null;
+        List<Player> players =
+                new ArrayList<>();
+
+        if (location == null
+                || location.getWorld() == null) {
+
+            return players;
         }
 
         double radius =
@@ -175,11 +264,20 @@ public class KothManager {
                         10.0
                 );
 
+        if (radius <= 0) {
+            radius = 10.0;
+        }
+
         double radiusSquared =
                 radius * radius;
 
         for (Player player :
                 Bukkit.getOnlinePlayers()) {
+
+            if (!player.isOnline()
+                    || player.isDead()) {
+                continue;
+            }
 
             if (!player.getWorld().equals(
                     location.getWorld()
@@ -191,252 +289,26 @@ public class KothManager {
                     .distanceSquared(location)
                     <= radiusSquared) {
 
-                return player;
+                players.add(player);
             }
         }
 
-        return null;
+        return players;
     }
 
-    private void completeKoth(
-            Player player
-    ) {
+    /**
+     * Compatibilidad con el código anterior.
+     */
+    private Player findCapturingPlayer() {
 
-        double money =
-                plugin.getConfig().getDouble(
-                        "koth.reward-money",
-                        500
-                );
+        List<Player> players =
+                getPlayersInside();
 
-        if (money > 0) {
-            plugin.getEconomyManager()
-                    .deposit(
-                            player,
-                            money
-                    );
-        }
-
-        String materialName =
-                plugin.getConfig().getString(
-                        "koth.reward-item",
-                        "DIAMOND"
-                );
-
-        Material material =
-                Material.matchMaterial(
-                        materialName
-                );
-
-        int amount =
-                plugin.getConfig().getInt(
-                        "koth.reward-item-amount",
-                        4
-                );
-
-        if (material != null
-                && amount > 0) {
-
-            player.getInventory().addItem(
-                    new ItemStack(
-                            material,
-                            amount
-                    )
-            );
-        }
-
-        player.sendMessage(
-                ChatColor.GOLD
-                        + "🏆 ¡Has capturado el KOTH!"
-        );
-
-        Bukkit.broadcastMessage(
-                ChatColor.GOLD
-                        + "🏰 KOTH capturado por "
-                        + ChatColor.WHITE
-                        + player.getName()
-                        + ChatColor.GOLD
-                        + "!"
-        );
-
-        stopKoth();
-    }
-
-    private void createBossBar() {
-
-        removeBossBar();
-
-        bossBar =
-                Bukkit.createBossBar(
-                        ChatColor.GOLD
-                                + "🏰 KOTH",
-                        BarColor.RED,
-                        BarStyle.SOLID
-                );
-
-        bossBar.setProgress(0.0);
-
-        for (Player player :
-                Bukkit.getOnlinePlayers()) {
-
-            bossBar.addPlayer(player);
-        }
-    }
-
-    private void updateBossBar(
-            String text
-    ) {
-
-        if (bossBar == null) {
-            return;
-        }
-
-        bossBar.setTitle(
-                ChatColor.GOLD + text
-        );
-    }
-
-    private void removeBossBar() {
-
-        if (bossBar != null) {
-            bossBar.removeAll();
-            bossBar = null;
-        }
-    }
-
-    public void setLocation(
-            Location location
-    ) {
-
-        if (location == null
-                || location.getWorld() == null) {
-            return;
-        }
-
-        this.location =
-                location.clone();
-
-        saveLocation();
-    }
-
-    public Location getLocation() {
-
-        if (location == null) {
+        if (players.size() != 1) {
             return null;
         }
 
-        return location.clone();
+        return players.get(0);
     }
 
-    private void loadLocation() {
-
-        String worldName =
-                plugin.getConfig()
-                        .getString(
-                                "koth.world"
-                        );
-
-        if (worldName == null) {
-            return;
-        }
-
-        World world =
-                Bukkit.getWorld(worldName);
-
-        if (world == null) {
-            return;
-        }
-
-        double x =
-                plugin.getConfig()
-                        .getDouble(
-                                "koth.x"
-                        );
-
-        double y =
-                plugin.getConfig()
-                        .getDouble(
-                                "koth.y"
-                        );
-
-        double z =
-                plugin.getConfig()
-                        .getDouble(
-                                "koth.z"
-                        );
-
-        float yaw =
-                (float) plugin.getConfig()
-                        .getDouble(
-                                "koth.yaw"
-                        );
-
-        float pitch =
-                (float) plugin.getConfig()
-                        .getDouble(
-                                "koth.pitch"
-                        );
-
-        location =
-                new Location(
-                        world,
-                        x,
-                        y,
-                        z,
-                        yaw,
-                        pitch
-                );
-    }
-
-    private void saveLocation() {
-
-        if (location == null
-                || location.getWorld() == null) {
-            return;
-        }
-
-        plugin.getConfig().set(
-                "koth.world",
-                location.getWorld()
-                        .getName()
-        );
-
-        plugin.getConfig().set(
-                "koth.x",
-                location.getX()
-        );
-
-        plugin.getConfig().set(
-                "koth.y",
-                location.getY()
-        );
-
-        plugin.getConfig().set(
-                "koth.z",
-                location.getZ()
-        );
-
-        plugin.getConfig().set(
-                "koth.yaw",
-                location.getYaw()
-        );
-
-        plugin.getConfig().set(
-                "koth.pitch",
-                location.getPitch()
-        );
-
-        plugin.saveConfig();
-    }
-
-    public boolean isActive() {
-        return active;
-    }
-
-    public Player getCapturingPlayer() {
-        return capturingPlayer;
-    }
-
-    public BossBar getBossBar() {
-        return bossBar;
-    }
-}
+    /**
