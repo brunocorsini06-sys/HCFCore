@@ -32,88 +32,110 @@ public class AirdropEditorGUI implements Listener {
     public void open(Player player) {
 
         if (!isAdmin(player)) {
-            player.sendMessage(
-                    ChatColor.RED
-                            + "No tienes permiso para usar el editor."
-            );
+            deny(player);
             return;
         }
 
-        Inventory inventory =
+        Inventory inv =
                 Bukkit.createInventory(
                         null,
                         27,
                         MAIN_TITLE
                 );
 
-        inventory.setItem(
+        boolean enabled =
+                plugin.getConfig()
+                        .getBoolean(
+                                "airdrop.enabled",
+                                true
+                        );
+
+        inv.setItem(
                 10,
-                createItem(
+                item(
                         Material.CHEST,
-                        ChatColor.GOLD + "🎁 Editar Loot",
-                        ChatColor.GRAY
-                                + "Editar los objetos del Airdrop"
+                        ChatColor.GOLD +
+                                "🎁 Editar Loot",
+                        ChatColor.GRAY +
+                                "Editar los objetos del Airdrop"
                 )
         );
 
-        inventory.setItem(
+        inv.setItem(
                 12,
-                createItem(
+                item(
                         Material.CLOCK,
-                        ChatColor.YELLOW + "⏱ Intervalo",
-                        ChatColor.GRAY
-                                + "Cada "
+                        ChatColor.YELLOW +
+                                "⏱ Intervalo",
+                        ChatColor.GRAY +
+                                "Actual: "
                                 + plugin.getConfig()
                                 .getInt(
                                         "airdrop.interval-minutes",
                                         30
                                 )
-                                + " minutos"
+                                + " minutos",
+                        ChatColor.GRAY +
+                                "Click izquierdo: +5 min",
+                        ChatColor.GRAY +
+                                "Click derecho: -5 min"
                 )
         );
 
-        inventory.setItem(
+        inv.setItem(
                 14,
-                createItem(
+                item(
                         Material.CLOCK,
-                        ChatColor.YELLOW + "⌛ Duración",
-                        ChatColor.GRAY
+                        ChatColor.YELLOW +
+                                "⌛ Duración",
+                        ChatColor.GRAY +
+                                "Actual: "
                                 + plugin.getConfig()
                                 .getInt(
                                         "airdrop.lifetime-seconds",
                                         180
                                 )
-                                + " segundos"
+                                + " segundos",
+                        ChatColor.GRAY +
+                                "Click izquierdo: +30s",
+                        ChatColor.GRAY +
+                                "Click derecho: -30s"
                 )
         );
 
-        inventory.setItem(
+        inv.setItem(
                 16,
-                createItem(
-                        Material.BEACON,
-                        ChatColor.AQUA + "📍 Ubicación",
-                        ChatColor.GRAY
-                                + "Los Airdrops aparecen"
-                                + " fuera de claims"
+                item(
+                        enabled
+                                ? Material.LIME_WOOL
+                                : Material.RED_WOOL,
+                        enabled
+                                ? ChatColor.GREEN +
+                                "🟢 Airdrop ACTIVADO"
+                                : ChatColor.RED +
+                                "🔴 Airdrop DESACTIVADO",
+                        ChatColor.GRAY +
+                                "Click para cambiar"
                 )
         );
 
-        inventory.setItem(
+        inv.setItem(
                 22,
-                createItem(
-                        Material.ARROW,
-                        ChatColor.YELLOW + "← Cerrar",
-                        ChatColor.GRAY
-                                + "Cerrar editor"
+                item(
+                        Material.BARRIER,
+                        ChatColor.RED +
+                                "✖ Cerrar",
+                        ChatColor.GRAY +
+                                "Cerrar editor"
                 )
         );
 
-        player.openInventory(inventory);
+        player.openInventory(inv);
     }
 
     private void openLoot(Player player) {
 
-        Inventory inventory =
+        Inventory inv =
                 Bukkit.createInventory(
                         null,
                         54,
@@ -137,7 +159,7 @@ public class AirdropEditorGUI implements Listener {
             String[] parts =
                     entry.split(":");
 
-            if (parts.length < 2) {
+            if (parts.length == 0) {
                 continue;
             }
 
@@ -152,13 +174,17 @@ public class AirdropEditorGUI implements Listener {
 
             int amount = 1;
 
-            try {
-                amount =
-                        Integer.parseInt(parts[1]);
-            } catch (NumberFormatException ignored) {
+            if (parts.length >= 2) {
+
+                try {
+                    amount =
+                            Integer.parseInt(parts[1]);
+
+                } catch (NumberFormatException ignored) {
+                }
             }
 
-            inventory.setItem(
+            inv.setItem(
                     slot++,
                     new ItemStack(
                             material,
@@ -167,32 +193,34 @@ public class AirdropEditorGUI implements Listener {
             );
         }
 
-        inventory.setItem(
+        inv.setItem(
                 49,
-                createItem(
+                item(
                         Material.LIME_WOOL,
-                        ChatColor.GREEN + "💾 GUARDAR",
-                        ChatColor.GRAY
-                                + "Guardar el nuevo loot"
+                        ChatColor.GREEN +
+                                "💾 GUARDAR",
+                        ChatColor.GRAY +
+                                "Guardar loot"
                 )
         );
 
-        inventory.setItem(
+        inv.setItem(
                 53,
-                createItem(
+                item(
                         Material.ARROW,
-                        ChatColor.YELLOW + "← Volver",
-                        ChatColor.GRAY
-                                + "Volver al editor"
+                        ChatColor.YELLOW +
+                                "← Volver",
+                        ChatColor.GRAY +
+                                "Volver al editor"
                 )
         );
 
-        player.openInventory(inventory);
+        player.openInventory(inv);
     }
 
     private void saveLoot(Player player) {
 
-        Inventory inventory =
+        Inventory inv =
                 player.getOpenInventory()
                         .getTopInventory();
 
@@ -202,11 +230,12 @@ public class AirdropEditorGUI implements Listener {
         for (int slot = 0; slot < 45; slot++) {
 
             ItemStack item =
-                    inventory.getItem(slot);
+                    inv.getItem(slot);
 
             if (item == null
                     || item.getType()
                     == Material.AIR) {
+
                 continue;
             }
 
@@ -225,22 +254,131 @@ public class AirdropEditorGUI implements Listener {
         plugin.saveConfig();
 
         player.sendMessage(
-                ChatColor.GREEN
-                        + "✓ Loot del Airdrop guardado."
+                ChatColor.GREEN +
+                        "✓ Loot del Airdrop guardado."
         );
     }
 
-    private ItemStack createItem(
-            Material material,
-            String name,
-            String lore
+    private void changeInterval(
+            Player player,
+            int amount
     ) {
 
-        ItemStack item =
+        int current =
+                plugin.getConfig()
+                        .getInt(
+                                "airdrop.interval-minutes",
+                                30
+                        );
+
+        int newValue =
+                Math.max(
+                        1,
+                        current + amount
+                );
+
+        plugin.getConfig().set(
+                "airdrop.interval-minutes",
+                newValue
+        );
+
+        plugin.saveConfig();
+
+        player.sendMessage(
+                ChatColor.GREEN +
+                        "✓ Intervalo: "
+                        + newValue
+                        + " minutos."
+        );
+
+        open(player);
+    }
+
+    private void changeLifetime(
+            Player player,
+            int amount
+    ) {
+
+        int current =
+                plugin.getConfig()
+                        .getInt(
+                                "airdrop.lifetime-seconds",
+                                180
+                        );
+
+        int newValue =
+                Math.max(
+                        10,
+                        current + amount
+                );
+
+        plugin.getConfig().set(
+                "airdrop.lifetime-seconds",
+                newValue
+        );
+
+        plugin.saveConfig();
+
+        player.sendMessage(
+                ChatColor.GREEN +
+                        "✓ Duración: "
+                        + newValue
+                        + " segundos."
+        );
+
+        open(player);
+    }
+
+    private void toggleAirdrop(
+            Player player
+    ) {
+
+        boolean current =
+                plugin.getConfig()
+                        .getBoolean(
+                                "airdrop.enabled",
+                                true
+                        );
+
+        boolean newValue = !current;
+
+        plugin.getConfig().set(
+                "airdrop.enabled",
+                newValue
+        );
+
+        plugin.saveConfig();
+
+        if (!newValue) {
+            plugin.getAirdropManager()
+                    .removeActiveDrop();
+        } else {
+            plugin.getAirdropManager()
+                    .startScheduler();
+        }
+
+        player.sendMessage(
+                newValue
+                        ? ChatColor.GREEN +
+                        "✓ Airdrops activados."
+                        : ChatColor.RED +
+                        "✓ Airdrops desactivados."
+        );
+
+        open(player);
+    }
+
+    private ItemStack item(
+            Material material,
+            String name,
+            String... lore
+    ) {
+
+        ItemStack stack =
                 new ItemStack(material);
 
         ItemMeta meta =
-                item.getItemMeta();
+                stack.getItemMeta();
 
         if (meta != null) {
 
@@ -249,18 +387,28 @@ public class AirdropEditorGUI implements Listener {
             List<String> loreList =
                     new ArrayList<>();
 
-            loreList.add(lore);
+            for (String line : lore) {
+                loreList.add(line);
+            }
 
             meta.setLore(loreList);
 
-            item.setItemMeta(meta);
+            stack.setItemMeta(meta);
         }
 
-        return item;
+        return stack;
     }
 
     private boolean isAdmin(Player player) {
         return player.hasPermission("hcf.admin");
+    }
+
+    private void deny(Player player) {
+
+        player.sendMessage(
+                ChatColor.RED +
+                        "No tienes permiso para usar el editor."
+        );
     }
 
     @EventHandler
@@ -288,19 +436,73 @@ public class AirdropEditorGUI implements Listener {
                 return;
             }
 
-            if (event.getSlot() == 10) {
+            switch (event.getSlot()) {
 
-                openLoot(player);
+                case 10:
 
-            } else if (event.getSlot() == 22) {
+                    openLoot(player);
+                    break;
 
-                player.closeInventory();
+                case 12:
+
+                    if (event.isLeftClick()) {
+
+                        changeInterval(
+                                player,
+                                5
+                        );
+
+                    } else if (event.isRightClick()) {
+
+                        changeInterval(
+                                player,
+                                -5
+                        );
+                    }
+
+                    break;
+
+                case 14:
+
+                    if (event.isLeftClick()) {
+
+                        changeLifetime(
+                                player,
+                                30
+                        );
+
+                    } else if (event.isRightClick()) {
+
+                        changeLifetime(
+                                player,
+                                -30
+                        );
+                    }
+
+                    break;
+
+                case 16:
+
+                    toggleAirdrop(player);
+                    break;
+
+                case 22:
+
+                    player.closeInventory();
+                    break;
+
+                default:
+                    break;
             }
 
             return;
         }
 
         if (title.equals(LOOT_TITLE)) {
+
+            /*
+             * Los slots 0-44 son totalmente editables.
+             */
 
             if (event.getSlot() == 49) {
 
@@ -325,20 +527,6 @@ public class AirdropEditorGUI implements Listener {
             InventoryCloseEvent event
     ) {
 
-        if (!(event.getPlayer()
-                instanceof Player)) {
-            return;
-        }
-
-        Player player =
-                (Player) event.getPlayer();
-
-        if (event.getView()
-                .getTitle()
-                .equals(LOOT_TITLE)) {
-
-            // El loot solamente se guarda
-            // cuando se pulsa GUARDAR.
-        }
+        // El loot solo se guarda pulsando GUARDAR.
     }
 }
