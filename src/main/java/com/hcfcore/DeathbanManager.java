@@ -10,8 +10,11 @@ public class DeathbanManager {
 
     private final HCFCore plugin;
 
-    private final Map<UUID, Long> deathbans = new HashMap<>();
-    private final Map<UUID, Integer> lives = new HashMap<>();
+    private final Map<UUID, Long> deathbans =
+            new HashMap<>();
+
+    private final Map<UUID, Integer> lives =
+            new HashMap<>();
 
     public DeathbanManager(HCFCore plugin) {
         this.plugin = plugin;
@@ -40,6 +43,10 @@ public class DeathbanManager {
      */
     public int getLives(Player player) {
 
+        if (player == null) {
+            return 0;
+        }
+
         setupPlayer(player);
 
         return lives.getOrDefault(
@@ -51,7 +58,10 @@ public class DeathbanManager {
     /**
      * Añade vidas.
      */
-    public void addLife(Player player, int amount) {
+    public void addLife(
+            Player player,
+            int amount
+    ) {
 
         if (player == null || amount <= 0) {
             return;
@@ -59,16 +69,22 @@ public class DeathbanManager {
 
         setupPlayer(player);
 
+        int current =
+                getLives(player);
+
         lives.put(
                 player.getUniqueId(),
-                getLives(player) + amount
+                current + amount
         );
     }
 
     /**
      * Quita vidas.
      */
-    public void removeLife(Player player, int amount) {
+    public void removeLife(
+            Player player,
+            int amount
+    ) {
 
         if (player == null || amount <= 0) {
             return;
@@ -107,6 +123,10 @@ public class DeathbanManager {
      */
     public boolean isDeathbanned(UUID uuid) {
 
+        if (uuid == null) {
+            return false;
+        }
+
         Long expires =
                 deathbans.get(uuid);
 
@@ -114,12 +134,16 @@ public class DeathbanManager {
             return false;
         }
 
+        // Deathban permanente.
         if (expires == -1L) {
             return true;
         }
 
+        // Deathban expirado.
         if (System.currentTimeMillis() >= expires) {
+
             deathbans.remove(uuid);
+
             return false;
         }
 
@@ -127,7 +151,8 @@ public class DeathbanManager {
     }
 
     /**
-     * Aplica un deathban.
+     * Aplica un deathban y descuenta
+     * una vida si está configurado.
      */
     public void deathban(Player player) {
 
@@ -150,6 +175,10 @@ public class DeathbanManager {
                         true
                 );
 
+        /*
+         * El DeathbanManager se encarga
+         * de descontar la vida.
+         */
         if (removeLife) {
             removeLife(player, 1);
         }
@@ -163,6 +192,9 @@ public class DeathbanManager {
                         true
                 );
 
+        /*
+         * Sin vidas = deathban permanente.
+         */
         if (playerLives <= 0 && permanent) {
 
             deathbans.put(
@@ -178,6 +210,10 @@ public class DeathbanManager {
                         "deathban.minutes-per-death",
                         30
                 );
+
+        if (minutes <= 0) {
+            minutes = 1;
+        }
 
         long expires =
                 System.currentTimeMillis()
@@ -211,9 +247,14 @@ public class DeathbanManager {
     }
 
     /**
-     * Tiempo restante del deathban en segundos.
+     * Tiempo restante del deathban
+     * en segundos.
+     *
+     * -1 = permanente.
      */
-    public long getRemainingSeconds(Player player) {
+    public long getRemainingSeconds(
+            Player player
+    ) {
 
         if (player == null) {
             return 0;
@@ -236,6 +277,7 @@ public class DeathbanManager {
                 expires - System.currentTimeMillis();
 
         if (remaining <= 0) {
+
             deathbans.remove(
                     player.getUniqueId()
             );
@@ -262,9 +304,6 @@ public class DeathbanManager {
 
     /**
      * Guarda los datos.
-     *
-     * La persistencia completa se conectará
-     * posteriormente al sistema de almacenamiento.
      */
     public void saveAll() {
         // Persistencia próximamente.
