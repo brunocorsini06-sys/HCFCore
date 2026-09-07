@@ -22,7 +22,6 @@ public class ClaimManager {
      * Genera una clave única para un chunk.
      */
     private String getKey(Chunk chunk) {
-
         return chunk.getWorld().getName()
                 + ":"
                 + chunk.getX()
@@ -41,8 +40,7 @@ public class ClaimManager {
 
         Chunk chunk = location.getChunk();
 
-        String factionName =
-                claims.get(getKey(chunk));
+        String factionName = claims.get(getKey(chunk));
 
         if (factionName == null) {
             return null;
@@ -56,6 +54,10 @@ public class ClaimManager {
      * Comprueba si un chunk está reclamado.
      */
     public boolean isClaimed(Chunk chunk) {
+        if (chunk == null) {
+            return false;
+        }
+
         return claims.containsKey(getKey(chunk));
     }
 
@@ -63,7 +65,6 @@ public class ClaimManager {
      * Comprueba si una ubicación está dentro de un claim.
      */
     public boolean isClaimed(Location location) {
-
         return getFactionAt(location) != null;
     }
 
@@ -76,15 +77,14 @@ public class ClaimManager {
             return false;
         }
 
-        Faction faction =
-                getFactionAt(location);
+        Faction faction = getFactionAt(location);
 
         // Territorio libre
         if (faction == null) {
             return true;
         }
 
-        // OP con bypass
+        // Bypass administrativo
         if (player.hasPermission("hcf.bypass")) {
             return true;
         }
@@ -100,9 +100,7 @@ public class ClaimManager {
 
         // Dueño del territorio
         return playerFaction.getName()
-                .equalsIgnoreCase(
-                        faction.getName()
-                );
+                .equalsIgnoreCase(faction.getName());
     }
 
     /**
@@ -146,8 +144,7 @@ public class ClaimManager {
             return false;
         }
 
-        // Si se exige que sean adyacentes,
-        // comprobamos la conexión.
+        // Si se exige que sean adyacentes
         boolean requireAdjacent =
                 plugin.getConfig()
                         .getBoolean(
@@ -195,8 +192,7 @@ public class ClaimManager {
 
         String key = getKey(chunk);
 
-        String owner =
-                claims.get(key);
+        String owner = claims.get(key);
 
         if (owner == null) {
             return false;
@@ -225,11 +221,9 @@ public class ClaimManager {
         int count = 0;
 
         String factionName =
-                faction.getName()
-                        .toLowerCase();
+                faction.getName().toLowerCase();
 
-        for (String owner :
-                claims.values()) {
+        for (String owner : claims.values()) {
 
             if (owner.equalsIgnoreCase(
                     factionName
@@ -249,6 +243,10 @@ public class ClaimManager {
             Faction faction,
             Chunk chunk
     ) {
+
+        if (faction == null || chunk == null) {
+            return false;
+        }
 
         int x = chunk.getX();
         int z = chunk.getZ();
@@ -283,6 +281,10 @@ public class ClaimManager {
             Chunk chunk
     ) {
 
+        if (faction == null || chunk == null) {
+            return false;
+        }
+
         String owner =
                 claims.get(getKey(chunk));
 
@@ -297,9 +299,34 @@ public class ClaimManager {
      */
     public String getClaimOwner(Chunk chunk) {
 
+        if (chunk == null) {
+            return null;
+        }
+
         return claims.get(
                 getKey(chunk)
         );
+    }
+
+    /**
+     * Obtiene el nombre del claim donde está el jugador.
+     *
+     * Usado por el scoreboard.
+     */
+    public String getClaimName(Player player) {
+
+        if (player == null) {
+            return "Wilderness";
+        }
+
+        Faction faction =
+                getFactionAt(player.getLocation());
+
+        if (faction == null) {
+            return "Wilderness";
+        }
+
+        return faction.getName();
     }
 
     /**
@@ -315,8 +342,7 @@ public class ClaimManager {
         }
 
         String name =
-                faction.getName()
-                        .toLowerCase();
+                faction.getName().toLowerCase();
 
         claims.entrySet().removeIf(
                 entry ->
@@ -334,9 +360,6 @@ public class ClaimManager {
 
     /**
      * Persistencia.
-     *
-     * La vamos a conectar después
-     * al sistema de almacenamiento.
      */
     public void saveAll() {
         // Persistencia próximamente.
