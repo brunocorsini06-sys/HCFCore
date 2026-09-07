@@ -21,8 +21,11 @@ public class KitEditorGUI implements Listener {
     private static final String MAIN_TITLE =
             ChatColor.DARK_GREEN + "🎒 Kit Editor";
 
-    private final String PREFIX =
+    private static final String PREFIX =
             ChatColor.DARK_GREEN + "Editando Kit: ";
+
+    private static final String COOLDOWN_TITLE =
+            ChatColor.DARK_AQUA + "⏱ Kit Cooldown";
 
     public KitEditorGUI(HCFCore plugin) {
         this.plugin = plugin;
@@ -31,43 +34,48 @@ public class KitEditorGUI implements Listener {
     public void open(Player player) {
 
         if (!isAdmin(player)) {
-            player.sendMessage(
-                    ChatColor.RED +
-                            "No tienes permiso para usar el editor."
-            );
+            deny(player);
             return;
         }
 
-        Inventory inventory =
-                Bukkit.createInventory(
-                        null,
-                        27,
-                        MAIN_TITLE
+        Inventory inv = Bukkit.createInventory(
+                null,
+                27,
+                MAIN_TITLE
+        );
+
+        int slot = 10;
+
+        if (plugin.getConfig().getConfigurationSection("kits") != null) {
+
+            for (String kit :
+                    plugin.getConfig()
+                            .getConfigurationSection("kits")
+                            .getKeys(false)) {
+
+                if (slot >= 17) {
+                    break;
+                }
+
+                Material icon = getKitIcon(kit);
+
+                inv.setItem(
+                        slot,
+                        item(
+                                icon,
+                                ChatColor.GREEN + kit,
+                                ChatColor.GRAY +
+                                        "Click para editar"
+                        )
                 );
 
-        inventory.setItem(
-                10,
-                createItem(
-                        Material.CHEST,
-                        ChatColor.GREEN + "🎒 Starter",
-                        ChatColor.GRAY +
-                                "Editar kit Starter"
-                )
-        );
+                slot++;
+            }
+        }
 
-        inventory.setItem(
-                12,
-                createItem(
-                        Material.BOW,
-                        ChatColor.AQUA + "🏹 Archer",
-                        ChatColor.GRAY +
-                                "Editar kit Archer"
-                )
-        );
-
-        inventory.setItem(
-                16,
-                createItem(
+        inv.setItem(
+                22,
+                item(
                         Material.EMERALD,
                         ChatColor.GREEN + "➕ Crear Kit",
                         ChatColor.GRAY +
@@ -75,17 +83,17 @@ public class KitEditorGUI implements Listener {
                 )
         );
 
-        inventory.setItem(
-                22,
-                createItem(
-                        Material.ARROW,
-                        ChatColor.YELLOW + "← Cerrar",
+        inv.setItem(
+                26,
+                item(
+                        Material.BARRIER,
+                        ChatColor.RED + "✖ Cerrar",
                         ChatColor.GRAY +
                                 "Cerrar editor"
                 )
         );
 
-        player.openInventory(inventory);
+        player.openInventory(inv);
     }
 
     public void openEditor(
@@ -94,6 +102,7 @@ public class KitEditorGUI implements Listener {
     ) {
 
         if (!isAdmin(player)) {
+            deny(player);
             return;
         }
 
@@ -110,63 +119,60 @@ public class KitEditorGUI implements Listener {
             return;
         }
 
-        Inventory inventory =
+        Inventory inv =
                 Bukkit.createInventory(
                         null,
                         54,
                         PREFIX + kitName
                 );
 
-        loadKit(
-                inventory,
-                kitName
-        );
+        loadKit(inv, kitName);
 
-        inventory.setItem(
+        inv.setItem(
                 45,
-                createItem(
+                item(
                         Material.CLOCK,
-                        ChatColor.YELLOW +
-                                "⏱ Cooldown",
+                        ChatColor.YELLOW + "⏱ Cooldown",
                         ChatColor.GRAY +
-                                "Cooldown actual: "
-                                + plugin.getConfig()
-                                .getLong(
-                                        path +
-                                                ".cooldown-seconds",
-                                        86400
-                                )
-                                + " segundos"
+                                "Actual: "
+                                + formatTime(
+                                        plugin.getConfig()
+                                                .getLong(
+                                                        path +
+                                                                ".cooldown-seconds",
+                                                        86400
+                                                )
+                                ),
+                        ChatColor.GRAY +
+                                "Click para modificar"
                 )
         );
 
-        inventory.setItem(
+        inv.setItem(
                 49,
-                createItem(
+                item(
                         Material.LIME_WOOL,
-                        ChatColor.GREEN +
-                                "💾 GUARDAR",
+                        ChatColor.GREEN + "💾 GUARDAR",
                         ChatColor.GRAY +
-                                "Guardar contenido del kit"
+                                "Guardar objetos del kit"
                 )
         );
 
-        inventory.setItem(
+        inv.setItem(
                 53,
-                createItem(
+                item(
                         Material.ARROW,
-                        ChatColor.YELLOW +
-                                "← Volver",
+                        ChatColor.YELLOW + "← Volver",
                         ChatColor.GRAY +
-                                "Volver"
+                                "Volver a los kits"
                 )
         );
 
-        player.openInventory(inventory);
+        player.openInventory(inv);
     }
 
     private void loadKit(
-            Inventory inventory,
+            Inventory inv,
             String kitName
     ) {
 
@@ -189,6 +195,10 @@ public class KitEditorGUI implements Listener {
             String[] parts =
                     entry.split(":");
 
+            if (parts.length == 0) {
+                continue;
+            }
+
             Material material =
                     Material.matchMaterial(
                             parts[0].toUpperCase()
@@ -204,23 +214,17 @@ public class KitEditorGUI implements Listener {
 
                 try {
                     amount =
-                            Integer.parseInt(
-                                    parts[1]
-                            );
-                } catch (
-                        NumberFormatException ignored
-                ) {
+                            Integer.parseInt(parts[1]);
+
+                } catch (NumberFormatException ignored) {
                 }
             }
 
-            inventory.setItem(
+            inv.setItem(
                     slot++,
                     new ItemStack(
                             material,
-                            Math.max(
-                                    1,
-                                    amount
-                            )
+                            Math.max(1, amount)
                     )
             );
         }
@@ -246,10 +250,10 @@ public class KitEditorGUI implements Listener {
                 );
 
         String path =
-                "kits." +
-                        kitName.toLowerCase();
+                "kits."
+                        + kitName.toLowerCase();
 
-        Inventory inventory =
+        Inventory inv =
                 player.getOpenInventory()
                         .getTopInventory();
 
@@ -259,11 +263,12 @@ public class KitEditorGUI implements Listener {
         for (int slot = 0; slot < 45; slot++) {
 
             ItemStack item =
-                    inventory.getItem(slot);
+                    inv.getItem(slot);
 
             if (item == null
                     || item.getType()
                     == Material.AIR) {
+
                 continue;
             }
 
@@ -283,23 +288,208 @@ public class KitEditorGUI implements Listener {
 
         player.sendMessage(
                 ChatColor.GREEN +
-                        "✓ Kit " +
-                        kitName +
-                        " guardado correctamente."
+                        "✓ Kit "
+                        + kitName
+                        + " guardado."
         );
     }
 
-    private ItemStack createItem(
-            Material material,
-            String name,
-            String lore
+    private void openCooldown(
+            Player player,
+            String kitName
     ) {
 
-        ItemStack item =
+        Inventory inv =
+                Bukkit.createInventory(
+                        null,
+                        27,
+                        COOLDOWN_TITLE
+                                + " | "
+                                + kitName
+                );
+
+        inv.setItem(
+                10,
+                item(
+                        Material.RED_CONCRETE,
+                        ChatColor.RED + "-1 hora",
+                        ChatColor.GRAY +
+                                "Reducir 1 hora"
+                )
+        );
+
+        inv.setItem(
+                12,
+                item(
+                        Material.RED_WOOL,
+                        ChatColor.RED + "-10 minutos",
+                        ChatColor.GRAY +
+                                "Reducir 10 minutos"
+                )
+        );
+
+        inv.setItem(
+                14,
+                item(
+                        Material.GREEN_WOOL,
+                        ChatColor.GREEN + "+10 minutos",
+                        ChatColor.GRAY +
+                                "Agregar 10 minutos"
+                )
+        );
+
+        inv.setItem(
+                16,
+                item(
+                        Material.GREEN_CONCRETE,
+                        ChatColor.GREEN + "+1 hora",
+                        ChatColor.GRAY +
+                                "Agregar 1 hora"
+                )
+        );
+
+        inv.setItem(
+                22,
+                item(
+                        Material.ARROW,
+                        ChatColor.YELLOW + "← Volver",
+                        ChatColor.GRAY +
+                                "Volver al kit"
+                )
+        );
+
+        player.openInventory(inv);
+    }
+
+    private void changeCooldown(
+            Player player,
+            String kitName,
+            long seconds
+    ) {
+
+        String path =
+                "kits."
+                        + kitName.toLowerCase()
+                        + ".cooldown-seconds";
+
+        long current =
+                plugin.getConfig()
+                        .getLong(
+                                path,
+                                86400
+                        );
+
+        long newValue =
+                Math.max(
+                        0,
+                        current + seconds
+                );
+
+        plugin.getConfig().set(
+                path,
+                newValue
+        );
+
+        plugin.saveConfig();
+
+        player.sendMessage(
+                ChatColor.GREEN +
+                        "✓ Cooldown de "
+                        + kitName
+                        + ": "
+                        + formatTime(newValue)
+        );
+
+        openEditor(
+                player,
+                kitName
+        );
+    }
+
+    private String getKitFromTitle(
+            String title
+    ) {
+
+        String prefix =
+                COOLDOWN_TITLE + " | ";
+
+        if (!title.startsWith(prefix)) {
+            return null;
+        }
+
+        return title.substring(
+                prefix.length()
+        );
+    }
+
+    private Material getKitIcon(
+            String kit
+    ) {
+
+        if (kit.equalsIgnoreCase("starter")) {
+            return Material.CHEST;
+        }
+
+        if (kit.equalsIgnoreCase("archer")) {
+            return Material.BOW;
+        }
+
+        if (kit.equalsIgnoreCase("bard")) {
+            return Material.GOLD_INGOT;
+        }
+
+        if (kit.equalsIgnoreCase("diamond")) {
+            return Material.DIAMOND_CHESTPLATE;
+        }
+
+        return Material.CHEST;
+    }
+
+    private String formatTime(
+            long seconds
+    ) {
+
+        if (seconds <= 0) {
+            return "Sin cooldown";
+        }
+
+        long days =
+                seconds / 86400;
+
+        seconds %= 86400;
+
+        long hours =
+                seconds / 3600;
+
+        seconds %= 3600;
+
+        long minutes =
+                seconds / 60;
+
+        if (days > 0) {
+            return days + "d "
+                    + hours + "h";
+        }
+
+        if (hours > 0) {
+            return hours + "h "
+                    + minutes + "m";
+        }
+
+        return minutes + "m";
+    }
+
+    private ItemStack item(
+            Material material,
+            String name,
+            String... lore
+    ) {
+
+        ItemStack stack =
                 new ItemStack(material);
 
         ItemMeta meta =
-                item.getItemMeta();
+                stack.getItemMeta();
 
         if (meta != null) {
 
@@ -308,18 +498,35 @@ public class KitEditorGUI implements Listener {
             List<String> loreList =
                     new ArrayList<>();
 
-            loreList.add(lore);
+            for (String line : lore) {
+                loreList.add(line);
+            }
 
             meta.setLore(loreList);
 
-            item.setItemMeta(meta);
+            stack.setItemMeta(meta);
         }
 
-        return item;
+        return stack;
     }
 
-    private boolean isAdmin(Player player) {
-        return player.hasPermission("hcf.admin");
+    private boolean isAdmin(
+            Player player
+    ) {
+
+        return player.hasPermission(
+                "hcf.admin"
+        );
+    }
+
+    private void deny(
+            Player player
+    ) {
+
+        player.sendMessage(
+                ChatColor.RED +
+                        "No tienes permiso para usar el editor."
+        );
     }
 
     @EventHandler
@@ -336,7 +543,8 @@ public class KitEditorGUI implements Listener {
                 (Player) event.getWhoClicked();
 
         String title =
-                event.getView().getTitle();
+                event.getView()
+                        .getTitle();
 
         if (title.equals(MAIN_TITLE)) {
 
@@ -347,37 +555,79 @@ public class KitEditorGUI implements Listener {
                 return;
             }
 
-            if (event.getSlot() == 10) {
-
-                openEditor(
-                        player,
-                        "starter"
-                );
-
-            } else if (event.getSlot() == 12) {
-
-                openEditor(
-                        player,
-                        "archer"
-                );
-
-            } else if (event.getSlot() == 16) {
+            if (event.getSlot() == 22) {
 
                 player.sendMessage(
                         ChatColor.YELLOW +
-                                "Para crear un kit nuevo " +
-                                "usaremos el comando /kit create."
+                                "Para crear un kit nuevo:"
                 );
 
-            } else if (event.getSlot() == 22) {
+                player.sendMessage(
+                        ChatColor.GRAY +
+                                "Usaremos un sistema de creación "
+                                + "por nombre en el siguiente paso."
+                );
 
+                return;
+            }
+
+            if (event.getSlot() == 26) {
                 player.closeInventory();
+                return;
+            }
+
+            ItemStack clicked =
+                    event.getCurrentItem();
+
+            if (clicked == null
+                    || !clicked.hasItemMeta()
+                    || clicked.getItemMeta()
+                    .getDisplayName() == null) {
+
+                return;
+            }
+
+            String kit =
+                    ChatColor.stripColor(
+                            clicked.getItemMeta()
+                                    .getDisplayName()
+                    );
+
+            if (plugin.getConfig()
+                    .contains(
+                            "kits."
+                                    + kit.toLowerCase()
+                    )) {
+
+                openEditor(
+                        player,
+                        kit
+                );
             }
 
             return;
         }
 
         if (title.startsWith(PREFIX)) {
+
+            if (event.getSlot() == 45) {
+
+                event.setCancelled(true);
+
+                String kitName =
+                        ChatColor.stripColor(
+                                title.substring(
+                                        PREFIX.length()
+                                )
+                        );
+
+                openCooldown(
+                        player,
+                        kitName
+                );
+
+                return;
+            }
 
             if (event.getSlot() == 49) {
 
@@ -393,6 +643,85 @@ public class KitEditorGUI implements Listener {
                 event.setCancelled(true);
 
                 open(player);
+
+                return;
+            }
+
+            /*
+             * Slots 0-44 son editables.
+             * El jugador puede colocar y quitar
+             * objetos libremente.
+             */
+
+            return;
+        }
+
+        if (title.startsWith(
+                COOLDOWN_TITLE + " | "
+        )) {
+
+            event.setCancelled(true);
+
+            String kitName =
+                    getKitFromTitle(title);
+
+            if (kitName == null) {
+                return;
+            }
+
+            switch (event.getSlot()) {
+
+                case 10:
+
+                    changeCooldown(
+                            player,
+                            kitName,
+                            -3600
+                    );
+
+                    break;
+
+                case 12:
+
+                    changeCooldown(
+                            player,
+                            kitName,
+                            -600
+                    );
+
+                    break;
+
+                case 14:
+
+                    changeCooldown(
+                            player,
+                            kitName,
+                            600
+                    );
+
+                    break;
+
+                case 16:
+
+                    changeCooldown(
+                            player,
+                            kitName,
+                            3600
+                    );
+
+                    break;
+
+                case 22:
+
+                    openEditor(
+                            player,
+                            kitName
+                    );
+
+                    break;
+
+                default:
+                    break;
             }
         }
     }
