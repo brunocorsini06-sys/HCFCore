@@ -155,11 +155,11 @@ public class HCFListener implements Listener {
          */
         if (attacker != null) {
 
-            plugin.getCombatManager()
-                    .tag(
-                            attacker,
-                            victim
-                    );
+           plugin.getCombatManager()
+                   .tag(attacker);
+
+           plugin.getCombatManager()
+                    .tag(victim);
         }
 
         /*
