@@ -10,7 +10,8 @@ public class CombatManager {
 
     private final HCFCore plugin;
 
-    private final Map<UUID, Long> combatTags = new HashMap<>();
+    private final Map<UUID, Long> combatTags =
+            new HashMap<>();
 
     public CombatManager(HCFCore plugin) {
         this.plugin = plugin;
@@ -26,12 +27,21 @@ public class CombatManager {
         }
 
         if (!plugin.getConfig().getBoolean(
-                "combat.enabled", true)) {
+                "combat.enabled",
+                true
+        )) {
             return;
         }
 
-        int seconds = plugin.getConfig().getInt(
-                "combat.tag-seconds", 30);
+        int seconds =
+                plugin.getConfig().getInt(
+                        "combat.tag-seconds",
+                        30
+                );
+
+        if (seconds <= 0) {
+            return;
+        }
 
         combatTags.put(
                 player.getUniqueId(),
@@ -49,16 +59,19 @@ public class CombatManager {
             return false;
         }
 
-        UUID uuid = player.getUniqueId();
-
-        Long expires = combatTags.get(uuid);
+        Long expires =
+                combatTags.get(
+                        player.getUniqueId()
+                );
 
         if (expires == null) {
             return false;
         }
 
         if (System.currentTimeMillis() >= expires) {
-            combatTags.remove(uuid);
+            combatTags.remove(
+                    player.getUniqueId()
+            );
             return false;
         }
 
@@ -70,12 +83,22 @@ public class CombatManager {
      */
     public long getRemainingSeconds(Player player) {
 
+        if (player == null) {
+            return 0;
+        }
+
         if (!isInCombat(player)) {
             return 0;
         }
 
         Long expires =
-                combatTags.get(player.getUniqueId());
+                combatTags.get(
+                        player.getUniqueId()
+                );
+
+        if (expires == null) {
+            return 0;
+        }
 
         long remaining =
                 expires - System.currentTimeMillis();
@@ -102,14 +125,29 @@ public class CombatManager {
 
     /**
      * Comprueba si un comando está bloqueado
-     * mientras el jugador está en combate.
+     * durante combate.
      */
     public boolean isCommandBlocked(String command) {
 
+        if (command == null) {
+            return false;
+        }
+
+        if (!plugin.getConfig().getBoolean(
+                "combat.block-commands",
+                true
+        )) {
+            return false;
+        }
+
         String cmd =
                 command.toLowerCase()
-                        .replace("/", "");
+                        .replace("/", "")
+                        .trim();
 
+        /*
+         * Comandos bloqueados durante combate.
+         */
         return cmd.equals("spawn")
                 || cmd.equals("home")
                 || cmd.equals("f home")
@@ -131,8 +169,12 @@ public class CombatManager {
             return;
         }
 
-        if (!isInCombat(player)) {
-            removeTag(player);
+        boolean inCombat =
+                isInCombat(player);
+
+        removeTag(player);
+
+        if (!inCombat) {
             return;
         }
 
@@ -142,16 +184,13 @@ public class CombatManager {
                         true
                 );
 
-        removeTag(player);
-
         if (!punish) {
             return;
         }
 
         /*
-         * El castigo real de muerte se ejecutará
-         * desde HCFListener para que Bukkit procese
-         * correctamente la muerte del jugador.
+         * El castigo de muerte se maneja
+         * desde HCFListener.
          */
         plugin.getLogger().info(
                 player.getName()
@@ -168,7 +207,8 @@ public class CombatManager {
                 System.currentTimeMillis();
 
         combatTags.entrySet().removeIf(
-                entry -> entry.getValue() <= now
+                entry ->
+                        entry.getValue() <= now
         );
     }
 
@@ -185,5 +225,14 @@ public class CombatManager {
                         20L,
                         20L
                 );
+    }
+
+    /**
+     * Devuelve la cantidad de jugadores
+     * actualmente marcados en combate.
+     */
+    public int getCombatCount() {
+        cleanup();
+        return combatTags.size();
     }
 }
