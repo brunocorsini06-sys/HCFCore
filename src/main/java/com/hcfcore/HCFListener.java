@@ -43,13 +43,27 @@ public class HCFListener implements Listener {
 
         Player player = event.getPlayer();
 
-        plugin.getDeathbanManager().setupPlayer(player);
+        /*
+         * VANISH
+         */
 
-        plugin.getScoreboardManager().update(player);
+        if (plugin.getVanishManager() != null) {
 
-        if (plugin.getKothManager().isActive()) {
+            plugin.getVanishManager()
+                    .handleJoin(player);
+        }
 
-            if (plugin.getKothManager().getBossBar() != null) {
+        plugin.getDeathbanManager()
+                .setupPlayer(player);
+
+        plugin.getScoreboardManager()
+                .update(player);
+
+        if (plugin.getKothManager()
+                .isActive()) {
+
+            if (plugin.getKothManager()
+                    .getBossBar() != null) {
 
                 plugin.getKothManager()
                         .getBossBar()
@@ -107,6 +121,20 @@ public class HCFListener implements Listener {
 
         Player player = event.getPlayer();
 
+        /*
+         * VANISH
+         */
+
+        if (plugin.getVanishManager() != null) {
+
+            plugin.getVanishManager()
+                    .handleQuit(player);
+        }
+
+        /*
+         * STAFF MODE
+         */
+
         if (plugin.getStaffManager() != null
                 && plugin.getStaffManager().isStaff(player)) {
 
@@ -114,12 +142,20 @@ public class HCFListener implements Listener {
                     .handleQuit(player);
         }
 
+        /*
+         * COMBAT
+         */
+
         if (plugin.getCombatManager()
                 .isInCombat(player)) {
 
             plugin.getCombatManager()
                     .handleQuit(player);
         }
+
+        /*
+         * KOTH BOSSBAR
+         */
 
         if (plugin.getKothManager()
                 .getBossBar() != null) {
@@ -312,19 +348,141 @@ public class HCFListener implements Listener {
         Player player =
                 event.getPlayer();
 
+        /*
+         * =====================================================
+         * STAFF MODE
+         * =====================================================
+         */
+
         if (plugin.getStaffManager() != null
                 && plugin.getStaffManager().isStaff(player)) {
+
+            /*
+             * Solo procesamos herramientas
+             * con clic derecho.
+             */
+
+            if (event.getAction().isRightClick()) {
+
+                org.bukkit.inventory.ItemStack item =
+                        event.getItem();
+
+                if (item != null
+                        && plugin.getStaffToolsManager() != null
+                        && plugin.getStaffToolsManager()
+                        .isStaffTool(item)) {
+
+                    String name = "";
+
+                    if (item.getItemMeta() != null
+                            && item.getItemMeta()
+                            .hasDisplayName()) {
+
+                        name =
+                                item.getItemMeta()
+                                        .getDisplayName();
+                    }
+
+                    /*
+                     * VANISH
+                     */
+
+                    if (name.equals(
+                            ChatColor.GREEN + "Vanish"
+                    )) {
+
+                        if (plugin.getVanishManager() != null) {
+
+                            boolean vanished =
+                                    plugin.getVanishManager()
+                                            .toggle(player);
+
+                            if (vanished) {
+
+                                player.sendMessage(
+                                        ChatColor.GREEN +
+                                                "Vanish activado."
+                                );
+
+                            } else {
+
+                                player.sendMessage(
+                                        ChatColor.RED +
+                                                "Vanish desactivado."
+                                );
+                            }
+                        }
+
+                        event.setCancelled(true);
+                        return;
+                    }
+
+                    /*
+                     * DESACTIVAR STAFF MODE
+                     */
+
+                    if (name.equals(
+                            ChatColor.RED +
+                                    "Desactivar Staff Mode"
+                    )) {
+
+                        if (plugin.getVanishManager() != null
+                                && plugin.getVanishManager()
+                                .isVanished(player)) {
+
+                            plugin.getVanishManager()
+                                    .disable(player);
+                        }
+
+                        if (plugin.getStaffManager() != null) {
+
+                            plugin.getStaffManager()
+                                    .disable(player);
+                        }
+
+                        player.sendMessage(
+                                ChatColor.RED +
+                                        "Staff Mode desactivado."
+                        );
+
+                        event.setCancelled(true);
+                        return;
+                    }
+
+                    /*
+                     * OTROS STAFF TOOLS
+                     *
+                     * Los implementaremos
+                     * progresivamente.
+                     */
+
+                    event.setCancelled(true);
+                    return;
+                }
+            }
+
+            /*
+             * Staff Mode no puede interactuar
+             * normalmente con el mundo.
+             */
 
             event.setCancelled(true);
             return;
         }
+
+        /*
+         * =====================================================
+         * NORMAL PLAYER INTERACTION
+         * =====================================================
+         */
 
         if (event.getClickedBlock() == null) {
             return;
         }
 
         Location location =
-                event.getClickedBlock().getLocation();
+                event.getClickedBlock()
+                        .getLocation();
 
         if (canBuild(player, location)) {
             return;
@@ -498,7 +656,9 @@ public class HCFListener implements Listener {
                     iterator.next();
 
             if (plugin.getClaimManager()
-                    .isClaimed(block.getLocation())) {
+                    .isClaimed(
+                            block.getLocation()
+                    )) {
 
                 iterator.remove();
             }
@@ -552,7 +712,9 @@ public class HCFListener implements Listener {
                 event.getBlocks()) {
 
             if (plugin.getClaimManager()
-                    .isClaimed(block.getLocation())) {
+                    .isClaimed(
+                            block.getLocation()
+                    )) {
 
                 event.setCancelled(true);
                 return;
@@ -574,7 +736,8 @@ public class HCFListener implements Listener {
 
         if (plugin.getClaimManager()
                 .isClaimed(
-                        event.getToBlock().getLocation()
+                        event.getToBlock()
+                                .getLocation()
                 )) {
 
             event.setCancelled(true);
@@ -595,7 +758,8 @@ public class HCFListener implements Listener {
 
         if (plugin.getClaimManager()
                 .isClaimed(
-                        event.getBlock().getLocation()
+                        event.getBlock()
+                                .getLocation()
                 )) {
 
             event.setCancelled(true);
@@ -627,9 +791,8 @@ public class HCFListener implements Listener {
 
             attacker =
                     (Player) damager;
-        }
 
-        else if (damager instanceof Projectile) {
+        } else if (damager instanceof Projectile) {
 
             Projectile projectile =
                     (Projectile) damager;
@@ -644,6 +807,23 @@ public class HCFListener implements Listener {
 
         if (attacker == null) {
             return;
+        }
+
+        /*
+         * Staff no puede participar
+         * en PvP.
+         */
+
+        if (plugin.getStaffManager() != null) {
+
+            if (plugin.getStaffManager()
+                    .isStaff(attacker)
+                    || plugin.getStaffManager()
+                    .isStaff(victim)) {
+
+                event.setCancelled(true);
+                return;
+            }
         }
 
         Faction attackerFaction =
@@ -712,12 +892,17 @@ public class HCFListener implements Listener {
                 plugin.getFactionManager()
                         .getFaction(player);
 
-        boolean dtrLost = false;
+        double oldDtr = 0.0;
 
         if (faction != null) {
 
-            double oldDtr =
+            oldDtr =
                     faction.getDtr();
+        }
+
+        boolean dtrLost = false;
+
+        if (faction != null) {
 
             dtrLost =
                     plugin.getFactionManager()
@@ -731,7 +916,9 @@ public class HCFListener implements Listener {
                 player.sendMessage(
                         ChatColor.RED +
                                 "☠ Tu faction perdió "
-                                + formatDtr(oldDtr - newDtr)
+                                + formatDtr(
+                                oldDtr - newDtr
+                        )
                                 + " DTR."
                 );
 
@@ -903,15 +1090,21 @@ public class HCFListener implements Listener {
         seconds %= 60;
 
         if (days > 0) {
-            return days + "d " + hours + "h";
+
+            return days + "d "
+                    + hours + "h";
         }
 
         if (hours > 0) {
-            return hours + "h " + minutes + "m";
+
+            return hours + "h "
+                    + minutes + "m";
         }
 
         if (minutes > 0) {
-            return minutes + "m " + seconds + "s";
+
+            return minutes + "m "
+                    + seconds + "s";
         }
 
         return seconds + "s";
