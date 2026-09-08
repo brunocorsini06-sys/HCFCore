@@ -43,6 +43,7 @@ public class HCFCore extends JavaPlugin {
     private GUIManager guiManager;
     private StaffManager staffManager;
     private StaffToolsManager staffToolsManager;
+    private VanishManager vanishManager;
 
     private BukkitTask scoreboardTask;
     private BukkitTask dtrTask;
@@ -157,6 +158,9 @@ public class HCFCore extends JavaPlugin {
 
         staffToolsManager =
                 new StaffToolsManager(this);
+
+        vanishManager =
+                new VanishManager(this);
 
         /*
          * ==============================
@@ -414,6 +418,10 @@ public class HCFCore extends JavaPlugin {
         );
 
         getLogger().info(
+                "        Vanish ACTIVADO"
+        );
+
+        getLogger().info(
                 "================================="
         );
     }
@@ -522,8 +530,16 @@ public class HCFCore extends JavaPlugin {
         }
 
         /*
-         * Desactivar Staff Mode antes
-         * de apagar el plugin.
+         * Desactivar Vanish.
+         */
+
+        if (vanishManager != null) {
+
+            vanishManager.disableAll();
+        }
+
+        /*
+         * Desactivar Staff Mode.
          */
 
         if (staffManager != null) {
@@ -647,5 +663,9 @@ public class HCFCore extends JavaPlugin {
 
     public StaffToolsManager getStaffToolsManager() {
         return staffToolsManager;
+    }
+
+    public VanishManager getVanishManager() {
+        return vanishManager;
     }
 }
