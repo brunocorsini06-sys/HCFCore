@@ -1,206 +1,306 @@
 package com.hcfcore;
 
-import org.bukkit.ChatColor;
-import org.bukkit.Material;
+import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 
-public class StaffToolsManager {
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+public class StaffManager {
 
     private final HCFCore plugin;
 
-    public StaffToolsManager(HCFCore plugin) {
+    private final Map<UUID, GameMode> previousGameModes =
+            new HashMap<>();
+
+    private final Map<UUID, ItemStack[]> previousInventories =
+            new HashMap<>();
+
+    private final Map<UUID, ItemStack[]> previousArmor =
+            new HashMap<>();
+
+    private final Map<UUID, ItemStack> previousOffhand =
+            new HashMap<>();
+
+    public StaffManager(HCFCore plugin) {
         this.plugin = plugin;
     }
 
     /*
      * =========================================================
-     * STAFF TOOLS
+     * STAFF CHECK
      * =========================================================
      */
 
-    public void giveTools(Player player) {
+    public boolean isStaff(Player player) {
+
+        if (player == null) {
+            return false;
+        }
+
+        return previousGameModes.containsKey(
+                player.getUniqueId()
+        );
+    }
+
+    /*
+     * =========================================================
+     * ENABLE STAFF MODE
+     * =========================================================
+     */
+
+    public boolean enable(Player player) {
+
+        if (player == null || isStaff(player)) {
+            return false;
+        }
+
+        UUID uuid =
+                player.getUniqueId();
+
+        /*
+         * Guardar GameMode.
+         */
+
+        previousGameModes.put(
+                uuid,
+                player.getGameMode()
+        );
+
+        /*
+         * Guardar inventario.
+         */
+
+        previousInventories.put(
+                uuid,
+                player.getInventory()
+                        .getContents()
+                        .clone()
+        );
+
+        /*
+         * Guardar armadura.
+         */
+
+        previousArmor.put(
+                uuid,
+                player.getInventory()
+                        .getArmorContents()
+                        .clone()
+        );
+
+        /*
+         * Guardar offhand.
+         */
+
+        ItemStack offhand =
+                player.getInventory()
+                        .getItemInOffHand();
+
+        previousOffhand.put(
+                uuid,
+                offhand == null
+                        ? null
+                        : offhand.clone()
+        );
+
+        /*
+         * Limpiar inventario temporal.
+         */
+
+        player.getInventory().clear();
+
+        player.getInventory().setArmorContents(
+                new ItemStack[4]
+        );
+
+        player.getInventory().setItemInOffHand(
+                null
+        );
+
+        /*
+         * Activar Staff Mode.
+         */
+
+        player.setGameMode(
+                GameMode.CREATIVE
+        );
+
+        player.setAllowFlight(true);
+        player.setFlying(true);
+
+        /*
+         * Dar Staff Tools.
+         */
+
+        StaffToolsManager tools =
+                plugin.getStaffToolsManager();
+
+        if (tools != null) {
+
+            tools.giveTools(player);
+        }
+
+        return true;
+    }
+
+    /*
+     * =========================================================
+     * DISABLE STAFF MODE
+     * =========================================================
+     */
+
+    public boolean disable(Player player) {
+
+        if (player == null || !isStaff(player)) {
+            return false;
+        }
+
+        UUID uuid =
+                player.getUniqueId();
+
+        /*
+         * Limpiar Staff Tools.
+         */
+
+        player.getInventory().clear();
+
+        player.getInventory().setArmorContents(
+                new ItemStack[4]
+        );
+
+        player.getInventory().setItemInOffHand(
+                null
+        );
+
+        /*
+         * Restaurar inventario.
+         */
+
+        ItemStack[] inventory =
+                previousInventories.remove(uuid);
+
+        if (inventory != null) {
+
+            player.getInventory().setContents(
+                    inventory
+            );
+        }
+
+        /*
+         * Restaurar armadura.
+         */
+
+        ItemStack[] armor =
+                previousArmor.remove(uuid);
+
+        if (armor != null) {
+
+            player.getInventory().setArmorContents(
+                    armor
+            );
+        }
+
+        /*
+         * Restaurar offhand.
+         */
+
+        ItemStack offhand =
+                previousOffhand.remove(uuid);
+
+        player.getInventory().setItemInOffHand(
+                offhand
+        );
+
+        /*
+         * Restaurar GameMode.
+         */
+
+        GameMode previousGameMode =
+                previousGameModes.remove(uuid);
+
+        if (previousGameMode != null) {
+
+            player.setGameMode(
+                    previousGameMode
+            );
+        }
+
+        /*
+         * Desactivar vuelo.
+         */
+
+        player.setFlying(false);
+        player.setAllowFlight(false);
+
+        return true;
+    }
+
+    /*
+     * =========================================================
+     * QUIT
+     * =========================================================
+     *
+     * Importante:
+     *
+     * Bukkit guarda el inventario actual del jugador al salir.
+     * Por eso NO debemos borrar la copia antes de restaurarla.
+     *
+     * Restauramos primero y luego limpiamos los datos.
+     */
+
+    public void handleQuit(Player player) {
 
         if (player == null) {
             return;
         }
 
-        player.getInventory().clear();
+        if (!isStaff(player)) {
+            return;
+        }
 
         /*
-         * VANISH
+         * Restaurar inventario antes de que
+         * Bukkit termine de procesar el quit.
          */
-        player.getInventory().setItem(
-                0,
-                createItem(
-                        Material.LIME_DYE,
-                        ChatColor.GREEN + "Vanish",
-                        ChatColor.GRAY + "Clic derecho para activar/desactivar."
-                )
-        );
 
-        /*
-         * INSPECCIONAR
-         */
-        player.getInventory().setItem(
-                1,
-                createItem(
-                        Material.CHEST,
-                        ChatColor.GOLD + "Inspect",
-                        ChatColor.GRAY + "Clic derecho sobre un jugador."
-                )
-        );
-
-        /*
-         * TELEPORT
-         */
-        player.getInventory().setItem(
-                2,
-                createItem(
-                        Material.COMPASS,
-                        ChatColor.AQUA + "Teleport",
-                        ChatColor.GRAY + "Herramienta de teleport."
-                )
-        );
-
-        /*
-         * FREEZE
-         */
-        player.getInventory().setItem(
-                3,
-                createItem(
-                        Material.PACKED_ICE,
-                        ChatColor.BLUE + "Freeze",
-                        ChatColor.GRAY + "Clic derecho sobre un jugador."
-                )
-        );
-
-        /*
-         * RANDOM TP
-         */
-        player.getInventory().setItem(
-                4,
-                createItem(
-                        Material.ENDER_EYE,
-                        ChatColor.LIGHT_PURPLE + "Random TP",
-                        ChatColor.GRAY + "Teleport aleatorio."
-                )
-        );
-
-        /*
-         * STAFF MODE
-         */
-        player.getInventory().setItem(
-                8,
-                createItem(
-                        Material.RED_DYE,
-                        ChatColor.RED + "Desactivar Staff Mode",
-                        ChatColor.GRAY + "Clic derecho para salir."
-                )
-        );
+        disable(player);
     }
 
     /*
      * =========================================================
-     * ITEM CREATOR
+     * DISABLE ALL
      * =========================================================
      */
 
-    private ItemStack createItem(
-            Material material,
-            String name,
-            String... lore
-    ) {
+    public void disableAll() {
 
-        ItemStack item =
-                new ItemStack(material);
+        for (Player player :
+                plugin.getServer()
+                        .getOnlinePlayers()) {
 
-        ItemMeta meta =
-                item.getItemMeta();
+            if (isStaff(player)) {
 
-        if (meta == null) {
-            return item;
-        }
-
-        meta.setDisplayName(name);
-
-        if (lore.length > 0) {
-
-            java.util.List<String> loreList =
-                    new java.util.ArrayList<>();
-
-            for (String line : lore) {
-                loreList.add(line);
+                disable(player);
             }
-
-            meta.setLore(loreList);
         }
 
-        meta.addItemFlags(
-                ItemFlag.HIDE_ATTRIBUTES
-        );
-
-        item.setItemMeta(meta);
-
-        return item;
+        previousGameModes.clear();
+        previousInventories.clear();
+        previousArmor.clear();
+        previousOffhand.clear();
     }
 
     /*
      * =========================================================
-     * CHECK
+     * STAFF COUNT
      * =========================================================
      */
 
-    public boolean isStaffTool(ItemStack item) {
+    public int getStaffCount() {
 
-        if (item == null
-                || item.getType() == Material.AIR
-                || !item.hasItemMeta()) {
-
-            return false;
-        }
-
-        ItemMeta meta =
-                item.getItemMeta();
-
-        if (meta == null
-                || !meta.hasDisplayName()) {
-
-            return false;
-        }
-
-        String name =
-                meta.getDisplayName();
-
-        return name.equals(
-                ChatColor.GREEN + "Vanish"
-        )
-                || name.equals(
-                ChatColor.GOLD + "Inspect"
-        )
-                || name.equals(
-                ChatColor.AQUA + "Teleport"
-        )
-                || name.equals(
-                ChatColor.BLUE + "Freeze"
-        )
-                || name.equals(
-                ChatColor.LIGHT_PURPLE + "Random TP"
-        )
-                || name.equals(
-                ChatColor.RED + "Desactivar Staff Mode"
-        );
-    }
-
-    /*
-     * =========================================================
-     * PLUGIN
-     * =========================================================
-     */
-
-    public HCFCore getPlugin() {
-        return plugin;
+        return previousGameModes.size();
     }
 }
