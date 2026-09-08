@@ -1,11 +1,11 @@
 package com.hcfcore;
 
+import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import net.milkbowl.vault.economy.Economy;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -14,15 +14,29 @@ public class EconomyManager {
 
     private final HCFCore plugin;
 
-    private final Map<UUID, Double> balances = new HashMap<>();
-
     public EconomyManager(HCFCore plugin) {
         this.plugin = plugin;
-        loadAll();
     }
 
     /**
-     * Configura el jugador si todavía no existe.
+     * Obtiene el proveedor económico de Vault.
+     */
+    private Economy getEconomy() {
+
+        VaultHook vaultHook = plugin.getVaultHook();
+
+        if (vaultHook == null || !vaultHook.isConnected()) {
+            return null;
+        }
+
+        return vaultHook.getEconomy();
+    }
+
+    /**
+     * Configura la cuenta del jugador.
+     *
+     * Si no existe, la crea y aplica el balance inicial
+     * configurado en HCFCore.
      */
     public void setupPlayer(Player player) {
 
@@ -30,19 +44,44 @@ public class EconomyManager {
             return;
         }
 
-        UUID uuid = player.getUniqueId();
+        Economy economy = getEconomy();
 
-        if (balances.containsKey(uuid)) {
+        if (economy == null) {
             return;
         }
 
-        balances.put(
-                uuid,
-                plugin.getConfig()
-                        .getDouble("economy.starting-balance", 0.0)
-        );
+        OfflinePlayer offlinePlayer = player;
 
-        savePlayer(uuid);
+        if (!economy.hasAccount(offlinePlayer)) {
+
+            boolean created =
+                    economy.createPlayerAccount(offlinePlayer);
+
+            if (!created) {
+                plugin.getLogger().warning(
+                        "No se pudo crear la cuenta económica de "
+                                + player.getName()
+                );
+
+                return;
+            }
+
+            double startingBalance =
+                    plugin.getConfig()
+                            .getDouble(
+                                    "economy.starting-balance",
+                                    0.0
+                            );
+
+            if (isValidAmount(startingBalance)
+                    && startingBalance > 0.0) {
+
+                economy.depositPlayer(
+                        offlinePlayer,
+                        startingBalance
+                );
+            }
+        }
     }
 
     /**
@@ -56,9 +95,15 @@ public class EconomyManager {
 
         setupPlayer(player);
 
-        return balances.getOrDefault(
-                player.getUniqueId(),
-                0.0
+        Economy economy = getEconomy();
+
+        if (economy == null) {
+            return 0.0;
+        }
+
+        return Math.max(
+                0.0,
+                economy.getBalance(player)
         );
     }
 
@@ -71,11 +116,27 @@ public class EconomyManager {
             return 0.0;
         }
 
-        return balances.getOrDefault(uuid, 0.0);
+        Economy economy = getEconomy();
+
+        if (economy == null) {
+            return 0.0;
+        }
+
+        OfflinePlayer player =
+                Bukkit.getOfflinePlayer(uuid);
+
+        if (!economy.hasAccount(player)) {
+            return 0.0;
+        }
+
+        return Math.max(
+                0.0,
+                economy.getBalance(player)
+        );
     }
 
     /**
-     * Establece el balance.
+     * Establece el balance de un jugador.
      */
     public void setBalance(
             Player player,
@@ -90,14 +151,34 @@ public class EconomyManager {
             return;
         }
 
-        UUID uuid = player.getUniqueId();
+        setupPlayer(player);
 
-        balances.put(
-                uuid,
-                Math.max(0.0, amount)
-        );
+        Economy economy = getEconomy();
 
-        savePlayer(uuid);
+        if (economy == null) {
+            return;
+        }
+
+        double current =
+                economy.getBalance(player);
+
+        double target =
+                Math.max(0.0, amount);
+
+        if (current < target) {
+
+            economy.depositPlayer(
+                    player,
+                    target - current
+            );
+
+        } else if (current > target) {
+
+            economy.withdrawPlayer(
+                    player,
+                    current - target
+            );
+        }
     }
 
     /**
@@ -116,12 +197,42 @@ public class EconomyManager {
             return;
         }
 
-        balances.put(
-                uuid,
-                Math.max(0.0, amount)
-        );
+        Economy economy = getEconomy();
 
-        savePlayer(uuid);
+        if (economy == null) {
+            return;
+        }
+
+        OfflinePlayer player =
+                Bukkit.getOfflinePlayer(uuid);
+
+        if (!economy.hasAccount(player)) {
+
+            if (!economy.createPlayerAccount(player)) {
+                return;
+            }
+        }
+
+        double current =
+                economy.getBalance(player);
+
+        double target =
+                Math.max(0.0, amount);
+
+        if (current < target) {
+
+            economy.depositPlayer(
+                    player,
+                    target - current
+            );
+
+        } else if (current > target) {
+
+            economy.withdrawPlayer(
+                    player,
+                    current - target
+            );
+        }
     }
 
     /**
@@ -140,17 +251,18 @@ public class EconomyManager {
             return;
         }
 
-        UUID uuid = player.getUniqueId();
+        setupPlayer(player);
 
-        double current =
-                balances.getOrDefault(uuid, 0.0);
+        Economy economy = getEconomy();
 
-        balances.put(
-                uuid,
-                current + amount
+        if (economy == null) {
+            return;
+        }
+
+        economy.depositPlayer(
+                player,
+                amount
         );
-
-        savePlayer(uuid);
     }
 
     /**
@@ -169,15 +281,26 @@ public class EconomyManager {
             return;
         }
 
-        double current =
-                balances.getOrDefault(uuid, 0.0);
+        Economy economy = getEconomy();
 
-        balances.put(
-                uuid,
-                current + amount
+        if (economy == null) {
+            return;
+        }
+
+        OfflinePlayer player =
+                Bukkit.getOfflinePlayer(uuid);
+
+        if (!economy.hasAccount(player)) {
+
+            if (!economy.createPlayerAccount(player)) {
+                return;
+            }
+        }
+
+        economy.depositPlayer(
+                player,
+                amount
         );
-
-        savePlayer(uuid);
     }
 
     /**
@@ -198,23 +321,22 @@ public class EconomyManager {
             return false;
         }
 
-        UUID uuid = player.getUniqueId();
+        setupPlayer(player);
 
-        double current =
-                balances.getOrDefault(uuid, 0.0);
+        Economy economy = getEconomy();
 
-        if (current < amount) {
+        if (economy == null) {
             return false;
         }
 
-        balances.put(
-                uuid,
-                current - amount
-        );
+        if (!economy.has(player, amount)) {
+            return false;
+        }
 
-        savePlayer(uuid);
-
-        return true;
+        return economy.withdrawPlayer(
+                player,
+                amount
+        ).transactionSuccess();
     }
 
     /**
@@ -233,27 +355,31 @@ public class EconomyManager {
             return false;
         }
 
-        double current =
-                balances.getOrDefault(uuid, 0.0);
+        Economy economy = getEconomy();
 
-        if (current < amount) {
+        if (economy == null) {
             return false;
         }
 
-        balances.put(
-                uuid,
-                current - amount
-        );
+        OfflinePlayer player =
+                Bukkit.getOfflinePlayer(uuid);
 
-        savePlayer(uuid);
+        if (!economy.hasAccount(player)) {
+            return false;
+        }
 
-        return true;
+        if (!economy.has(player, amount)) {
+            return false;
+        }
+
+        return economy.withdrawPlayer(
+                player,
+                amount
+        ).transactionSuccess();
     }
 
     /**
      * Transfiere dinero entre jugadores.
-     *
-     * @return true si la transferencia fue realizada.
      */
     public boolean transfer(
             Player sender,
@@ -275,301 +401,102 @@ public class EconomyManager {
             return false;
         }
 
-        UUID senderUUID =
-                sender.getUniqueId();
+        setupPlayer(sender);
+        setupPlayer(receiver);
 
-        UUID receiverUUID =
-                receiver.getUniqueId();
+        Economy economy = getEconomy();
 
-        double senderBalance =
-                balances.getOrDefault(
-                        senderUUID,
-                        0.0
-                );
-
-        if (senderBalance < amount) {
+        if (economy == null) {
             return false;
         }
 
-        balances.put(
-                senderUUID,
-                senderBalance - amount
-        );
+        if (!economy.has(sender, amount)) {
+            return false;
+        }
 
-        double receiverBalance =
-                balances.getOrDefault(
-                        receiverUUID,
-                        0.0
-                );
+        if (!economy.withdrawPlayer(
+                sender,
+                amount
+        ).transactionSuccess()) {
 
-        balances.put(
-                receiverUUID,
-                receiverBalance + amount
-        );
+            return false;
+        }
 
-        savePlayer(senderUUID);
-        savePlayer(receiverUUID);
+        if (!economy.depositPlayer(
+                receiver,
+                amount
+        ).transactionSuccess()) {
+
+            /*
+             * Intentamos devolver el dinero
+             * al jugador si el depósito falla.
+             */
+            economy.depositPlayer(
+                    sender,
+                    amount
+            );
+
+            return false;
+        }
 
         return true;
     }
 
     /**
-     * Devuelve todos los balances.
+     * Devuelve una vista de los balances
+     * de los jugadores actualmente conectados.
+     *
+     * La economía real pertenece a Vault.
      */
     public Map<UUID, Double> getBalances() {
+
+        Map<UUID, Double> balances =
+                new HashMap<>();
+
+        Economy economy = getEconomy();
+
+        if (economy == null) {
+            return balances;
+        }
+
+        for (Player player :
+                Bukkit.getOnlinePlayers()) {
+
+            balances.put(
+                    player.getUniqueId(),
+                    Math.max(
+                            0.0,
+                            economy.getBalance(player)
+                    )
+            );
+        }
+
         return balances;
     }
 
     /**
-     * Guarda un jugador concreto.
-     */
-    private void savePlayer(UUID uuid) {
-
-        if (uuid == null) {
-            return;
-        }
-
-        DatabaseManager database =
-                plugin.getDatabaseManager();
-
-        if (database == null
-                || !database.isConnected()) {
-
-            return;
-        }
-
-        Connection connection =
-                database.getConnection();
-
-        if (connection == null) {
-            return;
-        }
-
-        String sql = """
-                INSERT INTO economy
-                (uuid, balance)
-                VALUES (?, ?)
-                ON CONFLICT(uuid)
-                DO UPDATE SET balance = excluded.balance
-                """;
-
-        try (PreparedStatement statement =
-                     connection.prepareStatement(sql)) {
-
-            statement.setString(
-                    1,
-                    uuid.toString()
-            );
-
-            statement.setDouble(
-                    2,
-                    balances.getOrDefault(
-                            uuid,
-                            0.0
-                    )
-            );
-
-            statement.executeUpdate();
-
-        } catch (SQLException e) {
-
-            plugin.getLogger().warning(
-                    "No se pudo guardar la economía del jugador "
-                            + uuid
-            );
-
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * Carga toda la economía desde SQLite.
-     */
-    public void loadAll() {
-
-        DatabaseManager database =
-                plugin.getDatabaseManager();
-
-        if (database == null
-                || !database.isConnected()) {
-
-            plugin.getLogger().warning(
-                    "No se pudo cargar la economía: SQLite no está conectado."
-            );
-
-            return;
-        }
-
-        Connection connection =
-                database.getConnection();
-
-        if (connection == null) {
-            return;
-        }
-
-        balances.clear();
-
-        String sql = """
-                SELECT uuid, balance
-                FROM economy
-                """;
-
-        try (PreparedStatement statement =
-                     connection.prepareStatement(sql);
-             ResultSet result =
-                     statement.executeQuery()) {
-
-            int loaded = 0;
-
-            while (result.next()) {
-
-                String uuidString =
-                        result.getString("uuid");
-
-                double balance =
-                        result.getDouble("balance");
-
-                try {
-
-                    UUID uuid =
-                            UUID.fromString(uuidString);
-
-                    balances.put(
-                            uuid,
-                            Math.max(
-                                    0.0,
-                                    balance
-                            )
-                    );
-
-                    loaded++;
-
-                } catch (IllegalArgumentException ignored) {
-
-                    plugin.getLogger().warning(
-                            "UUID inválido en economy: "
-                                    + uuidString
-                    );
-                }
-            }
-
-            plugin.getLogger().info(
-                    "Balances cargados desde SQLite: "
-                            + loaded
-            );
-
-        } catch (SQLException e) {
-
-            plugin.getLogger().severe(
-                    "Error cargando la economía desde SQLite."
-            );
-
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * Guarda toda la economía.
+     * Guarda la economía.
+     *
+     * Vault y el plugin económico son responsables
+     * de la persistencia del balance.
      */
     public void saveAll() {
 
-        DatabaseManager database =
-                plugin.getDatabaseManager();
-
-        if (database == null
-                || !database.isConnected()) {
-
-            return;
-        }
-
-        Connection connection =
-                database.getConnection();
-
-        if (connection == null) {
-            return;
-        }
-
-        String sql = """
-                INSERT INTO economy
-                (uuid, balance)
-                VALUES (?, ?)
-                ON CONFLICT(uuid)
-                DO UPDATE SET balance = excluded.balance
-                """;
-
-        try {
-
-            boolean previousAutoCommit =
-                    connection.getAutoCommit();
-
-            connection.setAutoCommit(false);
-
-            try (PreparedStatement statement =
-                         connection.prepareStatement(sql)) {
-
-                for (Map.Entry<UUID, Double> entry
-                        : balances.entrySet()) {
-
-                    UUID uuid =
-                            entry.getKey();
-
-                    Double balance =
-                            entry.getValue();
-
-                    if (uuid == null
-                            || balance == null
-                            || !isValidAmount(balance)) {
-
-                        continue;
-                    }
-
-                    statement.setString(
-                            1,
-                            uuid.toString()
-                    );
-
-                    statement.setDouble(
-                            2,
-                            Math.max(
-                                    0.0,
-                                    balance
-                            )
-                    );
-
-                    statement.addBatch();
-                }
-
-                statement.executeBatch();
-
-                connection.commit();
-
-            } catch (SQLException e) {
-
-                connection.rollback();
-
-                throw e;
-
-            } finally {
-
-                connection.setAutoCommit(
-                        previousAutoCommit
-                );
-            }
-
-        } catch (SQLException e) {
-
-            plugin.getLogger().severe(
-                    "Error guardando la economía en SQLite."
-            );
-
-            e.printStackTrace();
-        }
+        /*
+         * No hacemos nada aquí.
+         *
+         * HCFCore ya no guarda balances de jugadores
+         * en SQLite porque el proveedor de Vault es
+         * responsable de almacenar la economía.
+         */
     }
 
     /**
      * Comprueba que el número sea válido.
      */
-    private boolean isValidAmount(double amount) {
+    private boolean isValidAmount(
+            double amount
+    ) {
 
         return !Double.isNaN(amount)
                 && !Double.isInfinite(amount);
