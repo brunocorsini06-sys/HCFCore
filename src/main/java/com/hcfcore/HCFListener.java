@@ -17,7 +17,9 @@ import org.bukkit.event.block.BlockBurnEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -105,6 +107,13 @@ public class HCFListener implements Listener {
 
         Player player = event.getPlayer();
 
+        if (plugin.getStaffManager() != null
+                && plugin.getStaffManager().isStaff(player)) {
+
+            plugin.getStaffManager()
+                    .handleQuit(player);
+        }
+
         if (plugin.getCombatManager()
                 .isInCombat(player)) {
 
@@ -122,16 +131,89 @@ public class HCFListener implements Listener {
     }
 
     // =========================================================
-    // BLOCK BREAK
+    // STAFF MODE - DAMAGE
     // =========================================================
 
     @EventHandler(
-            priority = EventPriority.HIGH,
+            priority = EventPriority.HIGHEST,
             ignoreCancelled = true
     )
-    public void onBlockBreak(BlockBreakEvent event) {
+    public void onStaffDamage(
+            EntityDamageByEntityEvent event
+    ) {
 
-        Player player = event.getPlayer();
+        if (!(event.getEntity() instanceof Player)) {
+            return;
+        }
+
+        Player victim =
+                (Player) event.getEntity();
+
+        if (plugin.getStaffManager() != null
+                && plugin.getStaffManager().isStaff(victim)) {
+
+            event.setCancelled(true);
+            return;
+        }
+
+        Entity damager =
+                event.getDamager();
+
+        if (damager instanceof Player) {
+
+            Player attacker =
+                    (Player) damager;
+
+            if (plugin.getStaffManager() != null
+                    && plugin.getStaffManager().isStaff(attacker)) {
+
+                event.setCancelled(true);
+            }
+
+            return;
+        }
+
+        if (damager instanceof Projectile) {
+
+            Projectile projectile =
+                    (Projectile) damager;
+
+            if (projectile.getShooter()
+                    instanceof Player) {
+
+                Player shooter =
+                        (Player) projectile.getShooter();
+
+                if (plugin.getStaffManager() != null
+                        && plugin.getStaffManager().isStaff(shooter)) {
+
+                    event.setCancelled(true);
+                }
+            }
+        }
+    }
+
+    // =========================================================
+    // STAFF MODE - BLOCK BREAK
+    // =========================================================
+
+    @EventHandler(
+            priority = EventPriority.HIGHEST,
+            ignoreCancelled = true
+    )
+    public void onStaffBlockBreak(
+            BlockBreakEvent event
+    ) {
+
+        Player player =
+                event.getPlayer();
+
+        if (plugin.getStaffManager() != null
+                && plugin.getStaffManager().isStaff(player)) {
+
+            event.setCancelled(true);
+            return;
+        }
 
         if (!canBuild(
                 player,
@@ -144,16 +226,26 @@ public class HCFListener implements Listener {
     }
 
     // =========================================================
-    // BLOCK PLACE
+    // STAFF MODE - BLOCK PLACE
     // =========================================================
 
     @EventHandler(
-            priority = EventPriority.HIGH,
+            priority = EventPriority.HIGHEST,
             ignoreCancelled = true
     )
-    public void onBlockPlace(BlockPlaceEvent event) {
+    public void onStaffBlockPlace(
+            BlockPlaceEvent event
+    ) {
 
-        Player player = event.getPlayer();
+        Player player =
+                event.getPlayer();
+
+        if (plugin.getStaffManager() != null
+                && plugin.getStaffManager().isStaff(player)) {
+
+            event.setCancelled(true);
+            return;
+        }
 
         if (!canBuild(
                 player,
@@ -173,7 +265,9 @@ public class HCFListener implements Listener {
             priority = EventPriority.HIGH,
             ignoreCancelled = true
     )
-    public void onInventoryOpen(InventoryOpenEvent event) {
+    public void onInventoryOpen(
+            InventoryOpenEvent event
+    ) {
 
         if (!(event.getPlayer() instanceof Player)) {
             return;
@@ -181,6 +275,13 @@ public class HCFListener implements Listener {
 
         Player player =
                 (Player) event.getPlayer();
+
+        if (plugin.getStaffManager() != null
+                && plugin.getStaffManager().isStaff(player)) {
+
+            event.setCancelled(true);
+            return;
+        }
 
         Location location =
                 event.getInventory().getLocation();
@@ -201,13 +302,22 @@ public class HCFListener implements Listener {
     // =========================================================
 
     @EventHandler(
-            priority = EventPriority.HIGH,
+            priority = EventPriority.HIGHEST,
             ignoreCancelled = true
     )
-    public void onInteract(PlayerInteractEvent event) {
+    public void onInteract(
+            PlayerInteractEvent event
+    ) {
 
         Player player =
                 event.getPlayer();
+
+        if (plugin.getStaffManager() != null
+                && plugin.getStaffManager().isStaff(player)) {
+
+            event.setCancelled(true);
+            return;
+        }
 
         if (event.getClickedBlock() == null) {
             return;
@@ -320,6 +430,54 @@ public class HCFListener implements Listener {
     }
 
     // =========================================================
+    // STAFF MODE - DROP ITEMS
+    // =========================================================
+
+    @EventHandler(
+            priority = EventPriority.HIGHEST,
+            ignoreCancelled = true
+    )
+    public void onStaffDrop(
+            PlayerDropItemEvent event
+    ) {
+
+        Player player =
+                event.getPlayer();
+
+        if (plugin.getStaffManager() != null
+                && plugin.getStaffManager().isStaff(player)) {
+
+            event.setCancelled(true);
+        }
+    }
+
+    // =========================================================
+    // STAFF MODE - PICKUP ITEMS
+    // =========================================================
+
+    @EventHandler(
+            priority = EventPriority.HIGHEST,
+            ignoreCancelled = true
+    )
+    public void onStaffPickup(
+            EntityPickupItemEvent event
+    ) {
+
+        if (!(event.getEntity() instanceof Player)) {
+            return;
+        }
+
+        Player player =
+                (Player) event.getEntity();
+
+        if (plugin.getStaffManager() != null
+                && plugin.getStaffManager().isStaff(player)) {
+
+            event.setCancelled(true);
+        }
+    }
+
+    // =========================================================
     // EXPLOSIONES
     // =========================================================
 
@@ -327,7 +485,9 @@ public class HCFListener implements Listener {
             priority = EventPriority.HIGH,
             ignoreCancelled = true
     )
-    public void onExplosion(EntityExplodeEvent event) {
+    public void onExplosion(
+            EntityExplodeEvent event
+    ) {
 
         Iterator<org.bukkit.block.Block> iterator =
                 event.blockList().iterator();
@@ -463,19 +623,11 @@ public class HCFListener implements Listener {
         Entity damager =
                 event.getDamager();
 
-        // -----------------------------------------------------
-        // PVP CUERPO A CUERPO
-        // -----------------------------------------------------
-
         if (damager instanceof Player) {
 
             attacker =
                     (Player) damager;
         }
-
-        // -----------------------------------------------------
-        // PVP CON PROYECTILES
-        // -----------------------------------------------------
 
         else if (damager instanceof Projectile) {
 
@@ -490,14 +642,9 @@ public class HCFListener implements Listener {
             }
         }
 
-        // No fue un ataque de jugador.
         if (attacker == null) {
             return;
         }
-
-        // -----------------------------------------------------
-        // FRIENDLY FIRE
-        // -----------------------------------------------------
 
         Faction attackerFaction =
                 plugin.getFactionManager()
@@ -535,17 +682,9 @@ public class HCFListener implements Listener {
             }
         }
 
-        // -----------------------------------------------------
-        // SI EL EVENTO FUE CANCELADO
-        // -----------------------------------------------------
-
         if (event.isCancelled()) {
             return;
         }
-
-        // -----------------------------------------------------
-        // COMBAT TAG
-        // -----------------------------------------------------
 
         plugin.getCombatManager()
                 .tag(attacker);
@@ -566,16 +705,8 @@ public class HCFListener implements Listener {
         Player player =
                 event.getEntity();
 
-        // -----------------------------------------------------
-        // ESTADÍSTICA DE MUERTES
-        // -----------------------------------------------------
-
         plugin.getFactionManager()
                 .addDeath(player);
-
-        // -----------------------------------------------------
-        // DTR
-        // -----------------------------------------------------
 
         Faction faction =
                 plugin.getFactionManager()
@@ -610,10 +741,6 @@ public class HCFListener implements Listener {
                                 + formatDtr(newDtr)
                 );
 
-                // -------------------------------------------------
-                // RAIDABLE
-                // -------------------------------------------------
-
                 if (newDtr <= 0.0
                         && oldDtr > 0.0) {
 
@@ -621,10 +748,6 @@ public class HCFListener implements Listener {
                 }
             }
         }
-
-        // -----------------------------------------------------
-        // DEATHBAN
-        // -----------------------------------------------------
 
         if (plugin.getConfig()
                 .getBoolean(
@@ -635,10 +758,6 @@ public class HCFListener implements Listener {
             plugin.getDeathbanManager()
                     .deathban(player);
         }
-
-        // -----------------------------------------------------
-        // KILL
-        // -----------------------------------------------------
 
         Player killer =
                 player.getKiller();
@@ -660,10 +779,6 @@ public class HCFListener implements Listener {
                     .update(killer);
         }
 
-        // -----------------------------------------------------
-        // COMBAT TAG
-        // -----------------------------------------------------
-
         plugin.getCombatManager()
                 .removeTag(player);
 
@@ -672,10 +787,6 @@ public class HCFListener implements Listener {
             plugin.getCombatManager()
                     .removeTag(killer);
         }
-
-        // -----------------------------------------------------
-        // SCOREBOARD
-        // -----------------------------------------------------
 
         plugin.getScoreboardManager()
                 .update(player);
