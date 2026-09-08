@@ -2,6 +2,10 @@ package com.hcfcore;
 
 import org.bukkit.entity.Player;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -10,18 +14,17 @@ public class DeathbanManager {
 
     private final HCFCore plugin;
 
-    private final Map<UUID, Long> deathbans =
-            new HashMap<>();
-
-    private final Map<UUID, Integer> lives =
-            new HashMap<>();
+    private final Map<UUID, Long> deathbans = new HashMap<>();
+    private final Map<UUID, Integer> lives = new HashMap<>();
 
     public DeathbanManager(HCFCore plugin) {
         this.plugin = plugin;
+
+        loadAll();
     }
 
     /**
-     * Inicializa las vidas del jugador.
+     * Configura al jugador.
      */
     public void setupPlayer(Player player) {
 
@@ -29,17 +32,22 @@ public class DeathbanManager {
             return;
         }
 
+        UUID uuid = player.getUniqueId();
+
         lives.putIfAbsent(
-                player.getUniqueId(),
-                plugin.getConfig().getInt(
-                        "deathban.starting-lives",
-                        3
-                )
+                uuid,
+                plugin.getConfig()
+                        .getInt(
+                                "deathban.starting-lives",
+                                0
+                        )
         );
+
+        saveLives(uuid);
     }
 
     /**
-     * Devuelve las vidas actuales.
+     * Obtiene las vidas del jugador.
      */
     public int getLives(Player player) {
 
@@ -56,56 +64,181 @@ public class DeathbanManager {
     }
 
     /**
-     * Añade vidas.
+     * Obtiene las vidas mediante UUID.
      */
-    public void addLife(
-            Player player,
-            int amount
-    ) {
+    public int getLives(UUID uuid) {
 
-        if (player == null || amount <= 0) {
-            return;
+        if (uuid == null) {
+            return 0;
         }
 
-        setupPlayer(player);
-
-        int current =
-                getLives(player);
-
-        lives.put(
-                player.getUniqueId(),
-                current + amount
+        return lives.getOrDefault(
+                uuid,
+                0
         );
     }
 
     /**
-     * Quita vidas.
+     * Agrega una vida.
      */
-    public void removeLife(
-            Player player,
-            int amount
-    ) {
+    public void addLife(Player player) {
 
-        if (player == null || amount <= 0) {
+        if (player == null) {
             return;
         }
 
-        setupPlayer(player);
+        addLife(player.getUniqueId());
+    }
 
-        int newLives =
-                Math.max(
-                        0,
-                        getLives(player) - amount
+    /**
+     * Agrega una vida mediante UUID.
+     */
+    public void addLife(UUID uuid) {
+
+        if (uuid == null) {
+            return;
+        }
+
+        int current =
+                lives.getOrDefault(
+                        uuid,
+                        0
                 );
 
         lives.put(
-                player.getUniqueId(),
-                newLives
+                uuid,
+                current + 1
+        );
+
+        saveLives(uuid);
+    }
+
+    /**
+     * Elimina una vida.
+     *
+     * @return true si pudo quitarse.
+     */
+    public boolean removeLife(Player player) {
+
+        if (player == null) {
+            return false;
+        }
+
+        return removeLife(
+                player.getUniqueId()
         );
     }
 
     /**
-     * Comprueba si está deathbaneado.
+     * Elimina una vida mediante UUID.
+     */
+    public boolean removeLife(UUID uuid) {
+
+        if (uuid == null) {
+            return false;
+        }
+
+        int current =
+                lives.getOrDefault(
+                        uuid,
+                        0
+                );
+
+        if (current <= 0) {
+            return false;
+        }
+
+        lives.put(
+                uuid,
+                current - 1
+        );
+
+        saveLives(uuid);
+
+        return true;
+    }
+
+    /**
+     * Aplica un deathban.
+     */
+    public void deathban(Player player) {
+
+        if (player == null) {
+            return;
+        }
+
+        UUID uuid =
+                player.getUniqueId();
+
+        /*
+         * Si el sistema de vidas está habilitado,
+         * primero consume una vida.
+         */
+        boolean useLives =
+                plugin.getConfig()
+                        .getBoolean(
+                                "deathban.use-lives",
+                                true
+                        );
+
+        if (useLives) {
+
+            int currentLives =
+                    lives.getOrDefault(
+                            uuid,
+                            0
+                    );
+
+            if (currentLives > 0) {
+
+                lives.put(
+                        uuid,
+                        currentLives - 1
+                );
+
+                saveLives(uuid);
+
+                /*
+                 * Si todavía tiene vidas,
+                 * no recibe deathban.
+                 */
+                return;
+            }
+        }
+
+        long seconds =
+                plugin.getConfig()
+                        .getLong(
+                                "deathban.duration-seconds",
+                                86400
+                        );
+
+        /*
+         * 0 = permanente.
+         */
+        long expiresAt;
+
+        if (seconds <= 0) {
+
+            expiresAt = 0L;
+
+        } else {
+
+            expiresAt =
+                    System.currentTimeMillis()
+                            + (seconds * 1000L);
+        }
+
+        deathbans.put(
+                uuid,
+                expiresAt
+        );
+
+        saveDeathban(uuid);
+    }
+
+    /**
+     * Comprueba si el jugador está deathbaneado.
      */
     public boolean isDeathbanned(Player player) {
 
@@ -127,22 +260,29 @@ public class DeathbanManager {
             return false;
         }
 
-        Long expires =
+        Long expiresAt =
                 deathbans.get(uuid);
 
-        if (expires == null) {
+        if (expiresAt == null) {
             return false;
         }
 
-        // Deathban permanente.
-        if (expires == -1L) {
+        /*
+         * 0 = permanente.
+         */
+        if (expiresAt == 0L) {
             return true;
         }
 
-        // Deathban expirado.
-        if (System.currentTimeMillis() >= expires) {
+        /*
+         * Deathban expirado.
+         */
+        if (System.currentTimeMillis()
+                >= expiresAt) {
 
             deathbans.remove(uuid);
+
+            deleteDeathban(uuid);
 
             return false;
         }
@@ -151,82 +291,60 @@ public class DeathbanManager {
     }
 
     /**
-     * Aplica un deathban y descuenta
-     * una vida si está configurado.
+     * Obtiene los segundos restantes.
+     *
+     * -1 = permanente
+     *  0 = no deathban
      */
-    public void deathban(Player player) {
+    public long getRemainingSeconds(Player player) {
 
         if (player == null) {
-            return;
+            return 0L;
         }
 
-        if (!plugin.getConfig().getBoolean(
-                "deathban.enabled",
-                true
-        )) {
-            return;
-        }
-
-        setupPlayer(player);
-
-        boolean removeLife =
-                plugin.getConfig().getBoolean(
-                        "deathban.remove-life",
-                        true
-                );
-
-        /*
-         * El DeathbanManager se encarga
-         * de descontar la vida.
-         */
-        if (removeLife) {
-            removeLife(player, 1);
-        }
-
-        int playerLives =
-                getLives(player);
-
-        boolean permanent =
-                plugin.getConfig().getBoolean(
-                        "deathban.permanent-at-zero-lives",
-                        true
-                );
-
-        /*
-         * Sin vidas = deathban permanente.
-         */
-        if (playerLives <= 0 && permanent) {
-
-            deathbans.put(
-                    player.getUniqueId(),
-                    -1L
-            );
-
-            return;
-        }
-
-        int minutes =
-                plugin.getConfig().getInt(
-                        "deathban.minutes-per-death",
-                        30
-                );
-
-        if (minutes <= 0) {
-            minutes = 1;
-        }
-
-        long expires =
-                System.currentTimeMillis()
-                        + (minutes * 60_000L);
-
-        deathbans.put(
-                player.getUniqueId(),
-                expires
+        return getRemainingSeconds(
+                player.getUniqueId()
         );
     }
 
     /**
-     * Revive al jugador.
+     * Obtiene los segundos restantes mediante UUID.
+     */
+    public long getRemainingSeconds(UUID uuid) {
+
+        if (uuid == null) {
+            return 0L;
+        }
+
+        Long expiresAt =
+                deathbans.get(uuid);
+
+        if (expiresAt == null) {
+            return 0L;
+        }
+
+        if (expiresAt == 0L) {
+            return -1L;
+        }
+
+        long remaining =
+                expiresAt
+                        - System.currentTimeMillis();
+
+        if (remaining <= 0L) {
+
+            deathbans.remove(uuid);
+
+            deleteDeathban(uuid);
+
+            return 0L;
+        }
+
+        return (remaining + 999L) / 1000L;
+    }
+
+    /**
+     * Revive a un jugador.
      */
     public boolean revive(Player player) {
 
@@ -234,8 +352,19 @@ public class DeathbanManager {
             return false;
         }
 
-        UUID uuid =
-                player.getUniqueId();
+        return revive(
+                player.getUniqueId()
+        );
+    }
+
+    /**
+     * Revive mediante UUID.
+     */
+    public boolean revive(UUID uuid) {
+
+        if (uuid == null) {
+            return false;
+        }
 
         if (!deathbans.containsKey(uuid)) {
             return false;
@@ -243,69 +372,381 @@ public class DeathbanManager {
 
         deathbans.remove(uuid);
 
+        deleteDeathban(uuid);
+
         return true;
     }
 
     /**
-     * Tiempo restante del deathban
-     * en segundos.
-     *
-     * -1 = permanente.
-     */
-    public long getRemainingSeconds(
-            Player player
-    ) {
-
-        if (player == null) {
-            return 0;
-        }
-
-        Long expires =
-                deathbans.get(
-                        player.getUniqueId()
-                );
-
-        if (expires == null) {
-            return 0;
-        }
-
-        if (expires == -1L) {
-            return -1;
-        }
-
-        long remaining =
-                expires - System.currentTimeMillis();
-
-        if (remaining <= 0) {
-
-            deathbans.remove(
-                    player.getUniqueId()
-            );
-
-            return 0;
-        }
-
-        return (remaining + 999) / 1000;
-    }
-
-    /**
-     * Devuelve el mapa de vidas.
-     */
-    public Map<UUID, Integer> getLivesMap() {
-        return lives;
-    }
-
-    /**
-     * Devuelve los deathbans.
+     * Devuelve todos los deathbans.
      */
     public Map<UUID, Long> getDeathbans() {
         return deathbans;
     }
 
     /**
-     * Guarda los datos.
+     * Devuelve todas las vidas.
+     */
+    public Map<UUID, Integer> getLivesMap() {
+        return lives;
+    }
+
+    /**
+     * Carga deathbans y vidas desde SQLite.
+     */
+    public void loadAll() {
+
+        DatabaseManager database =
+                plugin.getDatabaseManager();
+
+        if (database == null
+                || !database.isConnected()) {
+
+            plugin.getLogger().warning(
+                    "No se pudieron cargar deathbans/lives: SQLite no está conectado."
+            );
+
+            return;
+        }
+
+        Connection connection =
+                database.getConnection();
+
+        if (connection == null) {
+            return;
+        }
+
+        deathbans.clear();
+        lives.clear();
+
+        /*
+         * =========================
+         * DEATHBANS
+         * =========================
+         */
+
+        String deathbanSql = """
+                SELECT uuid, expires_at
+                FROM deathbans
+                """;
+
+        try (PreparedStatement statement =
+                     connection.prepareStatement(
+                             deathbanSql
+                     );
+             ResultSet result =
+                     statement.executeQuery()) {
+
+            int loaded = 0;
+
+            while (result.next()) {
+
+                String uuidString =
+                        result.getString("uuid");
+
+                long expiresAt =
+                        result.getLong("expires_at");
+
+                try {
+
+                    UUID uuid =
+                            UUID.fromString(
+                                    uuidString
+                            );
+
+                    /*
+                     * Si ya expiró, no lo cargamos.
+                     */
+                    if (expiresAt != 0L
+                            && System.currentTimeMillis()
+                            >= expiresAt) {
+
+                        continue;
+                    }
+
+                    deathbans.put(
+                            uuid,
+                            expiresAt
+                    );
+
+                    loaded++;
+
+                } catch (IllegalArgumentException ignored) {
+
+                    plugin.getLogger().warning(
+                            "UUID inválido en deathbans: "
+                                    + uuidString
+                    );
+                }
+            }
+
+            plugin.getLogger().info(
+                    "Deathbans cargados desde SQLite: "
+                            + loaded
+            );
+
+        } catch (SQLException e) {
+
+            plugin.getLogger().severe(
+                    "Error cargando deathbans desde SQLite."
+            );
+
+            e.printStackTrace();
+        }
+
+        /*
+         * =========================
+         * LIVES
+         * =========================
+         */
+
+        String livesSql = """
+                SELECT uuid, amount
+                FROM lives
+                """;
+
+        try (PreparedStatement statement =
+                     connection.prepareStatement(
+                             livesSql
+                     );
+             ResultSet result =
+                     statement.executeQuery()) {
+
+            int loaded = 0;
+
+            while (result.next()) {
+
+                String uuidString =
+                        result.getString("uuid");
+
+                int amount =
+                        result.getInt("amount");
+
+                try {
+
+                    UUID uuid =
+                            UUID.fromString(
+                                    uuidString
+                            );
+
+                    lives.put(
+                            uuid,
+                            Math.max(
+                                    0,
+                                    amount
+                            )
+                    );
+
+                    loaded++;
+
+                } catch (IllegalArgumentException ignored) {
+
+                    plugin.getLogger().warning(
+                            "UUID inválido en lives: "
+                                    + uuidString
+                    );
+                }
+            }
+
+            plugin.getLogger().info(
+                    "Lives cargadas desde SQLite: "
+                            + loaded
+            );
+
+        } catch (SQLException e) {
+
+            plugin.getLogger().severe(
+                    "Error cargando lives desde SQLite."
+            );
+
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Guarda un deathban.
+     */
+    private void saveDeathban(UUID uuid) {
+
+        if (uuid == null) {
+            return;
+        }
+
+        DatabaseManager database =
+                plugin.getDatabaseManager();
+
+        if (database == null
+                || !database.isConnected()) {
+
+            return;
+        }
+
+        Connection connection =
+                database.getConnection();
+
+        if (connection == null) {
+            return;
+        }
+
+        String sql = """
+                INSERT INTO deathbans
+                (uuid, expires_at)
+                VALUES (?, ?)
+                ON CONFLICT(uuid)
+                DO UPDATE SET expires_at = excluded.expires_at
+                """;
+
+        try (PreparedStatement statement =
+                     connection.prepareStatement(sql)) {
+
+            statement.setString(
+                    1,
+                    uuid.toString()
+            );
+
+            statement.setLong(
+                    2,
+                    deathbans.getOrDefault(
+                            uuid,
+                            0L
+                    )
+            );
+
+            statement.executeUpdate();
+
+        } catch (SQLException e) {
+
+            plugin.getLogger().warning(
+                    "No se pudo guardar el deathban de "
+                            + uuid
+            );
+
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Elimina un deathban de SQLite.
+     */
+    private void deleteDeathban(UUID uuid) {
+
+        if (uuid == null) {
+            return;
+        }
+
+        DatabaseManager database =
+                plugin.getDatabaseManager();
+
+        if (database == null
+                || !database.isConnected()) {
+
+            return;
+        }
+
+        Connection connection =
+                database.getConnection();
+
+        if (connection == null) {
+            return;
+        }
+
+        String sql =
+                "DELETE FROM deathbans WHERE uuid = ?";
+
+        try (PreparedStatement statement =
+                     connection.prepareStatement(sql)) {
+
+            statement.setString(
+                    1,
+                    uuid.toString()
+            );
+
+            statement.executeUpdate();
+
+        } catch (SQLException e) {
+
+            plugin.getLogger().warning(
+                    "No se pudo eliminar el deathban de "
+                            + uuid
+            );
+
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Guarda las vidas de un jugador.
+     */
+    private void saveLives(UUID uuid) {
+
+        if (uuid == null) {
+            return;
+        }
+
+        DatabaseManager database =
+                plugin.getDatabaseManager();
+
+        if (database == null
+                || !database.isConnected()) {
+
+            return;
+        }
+
+        Connection connection =
+                database.getConnection();
+
+        if (connection == null) {
+            return;
+        }
+
+        String sql = """
+                INSERT INTO lives
+                (uuid, amount)
+                VALUES (?, ?)
+                ON CONFLICT(uuid)
+                DO UPDATE SET amount = excluded.amount
+                """;
+
+        try (PreparedStatement statement =
+                     connection.prepareStatement(sql)) {
+
+            statement.setString(
+                    1,
+                    uuid.toString()
+            );
+
+            statement.setInt(
+                    2,
+                    lives.getOrDefault(
+                            uuid,
+                            0
+                    )
+            );
+
+            statement.executeUpdate();
+
+        } catch (SQLException e) {
+
+            plugin.getLogger().warning(
+                    "No se pudieron guardar las lives de "
+                            + uuid
+            );
+
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Guarda todo.
      */
     public void saveAll() {
-        // Persistencia próximamente.
+
+        for (UUID uuid : deathbans.keySet()) {
+            saveDeathban(uuid);
+        }
+
+        for (UUID uuid : lives.keySet()) {
+            saveLives(uuid);
+        }
     }
 }
