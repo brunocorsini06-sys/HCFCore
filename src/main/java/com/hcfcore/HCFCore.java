@@ -12,6 +12,22 @@ public class HCFCore extends JavaPlugin {
 
     private DatabaseManager databaseManager;
 
+    /*
+     * ==============================
+     * EXTERNAL HOOKS
+     * ==============================
+     */
+
+    private LuckPermsHook luckPermsHook;
+    private VaultHook vaultHook;
+    private ProtocolLibHook protocolLibHook;
+
+    /*
+     * ==============================
+     * MANAGERS
+     * ==============================
+     */
+
     private FactionManager factionManager;
     private ClaimManager claimManager;
     private CombatManager combatManager;
@@ -40,6 +56,47 @@ public class HCFCore extends JavaPlugin {
 
         /*
          * ==============================
+         * EXTERNAL DEPENDENCIES
+         * ==============================
+         */
+
+        try {
+
+            /*
+             * LuckPerms
+             */
+
+            luckPermsHook = new LuckPermsHook(this);
+
+            /*
+             * Vault
+             */
+
+            vaultHook = new VaultHook(this);
+
+            /*
+             * ProtocolLib
+             */
+
+            protocolLibHook = new ProtocolLibHook(this);
+
+        } catch (Exception exception) {
+
+            getLogger().severe(
+                    "No se pudieron inicializar las dependencias externas."
+            );
+
+            exception.printStackTrace();
+
+            getServer()
+                    .getPluginManager()
+                    .disablePlugin(this);
+
+            return;
+        }
+
+        /*
+         * ==============================
          * DATABASE
          * ==============================
          */
@@ -52,7 +109,8 @@ public class HCFCore extends JavaPlugin {
                     "No se pudo iniciar la base de datos."
             );
 
-            getServer().getPluginManager()
+            getServer()
+                    .getPluginManager()
                     .disablePlugin(this);
 
             return;
@@ -255,7 +313,7 @@ public class HCFCore extends JavaPlugin {
 
         /*
          * ==============================
-         * MENSAJE DE INICIO
+         * STARTUP MESSAGE
          * ==============================
          */
 
@@ -281,6 +339,18 @@ public class HCFCore extends JavaPlugin {
 
         getLogger().info(
                 "        SQLite ACTIVADO"
+        );
+
+        getLogger().info(
+                "        LuckPerms CONECTADO"
+        );
+
+        getLogger().info(
+                "        Vault CONECTADO"
+        );
+
+        getLogger().info(
+                "        ProtocolLib CONECTADO"
         );
 
         getLogger().info(
@@ -487,6 +557,30 @@ public class HCFCore extends JavaPlugin {
     public static HCFCore getInstance() {
         return instance;
     }
+
+    /*
+     * ==============================
+     * EXTERNAL HOOK GETTERS
+     * ==============================
+     */
+
+    public LuckPermsHook getLuckPermsHook() {
+        return luckPermsHook;
+    }
+
+    public VaultHook getVaultHook() {
+        return vaultHook;
+    }
+
+    public ProtocolLibHook getProtocolLibHook() {
+        return protocolLibHook;
+    }
+
+    /*
+     * ==============================
+     * MANAGER GETTERS
+     * ==============================
+     */
 
     public DatabaseManager getDatabaseManager() {
         return databaseManager;
