@@ -42,7 +42,10 @@ public class FactionManager {
     // CREAR FACTION
     // =========================================================
 
-    public Faction createFaction(Player player, String name) {
+    public Faction createFaction(
+            Player player,
+            String name
+    ) {
 
         if (player == null || name == null) {
             return null;
@@ -64,25 +67,39 @@ public class FactionManager {
             return null;
         }
 
-        double startingDtr = getStartingDtr();
+        double startingDtr =
+                getStartingDtr();
 
-        Faction faction = new Faction(
-                name,
-                player.getUniqueId(),
-                startingDtr
+        double maxDtr =
+                getMaxDtr();
+
+        Faction faction =
+                new Faction(
+                        name,
+                        player.getUniqueId(),
+                        startingDtr,
+                        maxDtr
+                );
+
+        factions.put(
+                key,
+                faction
         );
-
-        factions.put(key, faction);
 
         playerFactions.put(
                 player.getUniqueId(),
                 key
         );
 
+        long now =
+                System.currentTimeMillis();
+
         lastDtrRegeneration.put(
                 key,
-                System.currentTimeMillis()
+                now
         );
+
+        faction.setLastDtrRegeneration(now);
 
         saveAll();
 
@@ -101,11 +118,14 @@ public class FactionManager {
 
         name = name.trim();
 
-        if (name.length() < 3 || name.length() > 16) {
+        if (name.length() < 3
+                || name.length() > 16) {
             return false;
         }
 
-        return name.matches("[A-Za-z0-9_]+");
+        return name.matches(
+                "[A-Za-z0-9_]+"
+        );
     }
 
     // =========================================================
@@ -118,21 +138,31 @@ public class FactionManager {
             return false;
         }
 
-        String key = normalize(faction.getName());
+        String key =
+                normalize(faction.getName());
 
-        for (UUID uuid : new HashSet<>(faction.getMembers())) {
+        for (UUID uuid :
+                new HashSet<>(
+                        faction.getMembers()
+                )) {
+
             playerFactions.remove(uuid);
         }
 
-        plugin.getClaimManager()
-                .removeFactionClaims(faction);
+        if (plugin.getClaimManager() != null) {
+
+            plugin.getClaimManager()
+                    .removeFactionClaims(faction);
+        }
 
         factions.remove(key);
 
         lastDtrRegeneration.remove(key);
 
         invites.entrySet().removeIf(
-                entry -> entry.getValue().equalsIgnoreCase(key)
+                entry ->
+                        entry.getValue()
+                                .equalsIgnoreCase(key)
         );
 
         saveAll();
@@ -144,16 +174,22 @@ public class FactionManager {
     // OBTENER FACTION
     // =========================================================
 
-    public Faction getFaction(Player player) {
+    public Faction getFaction(
+            Player player
+    ) {
 
         if (player == null) {
             return null;
         }
 
-        return getFaction(player.getUniqueId());
+        return getFaction(
+                player.getUniqueId()
+        );
     }
 
-    public Faction getFaction(UUID uuid) {
+    public Faction getFaction(
+            UUID uuid
+    ) {
 
         if (uuid == null) {
             return null;
@@ -171,7 +207,9 @@ public class FactionManager {
         );
     }
 
-    public Faction getFaction(String name) {
+    public Faction getFaction(
+            String name
+    ) {
 
         if (name == null) {
             return null;
@@ -191,7 +229,8 @@ public class FactionManager {
             String name
     ) {
 
-        if (player == null || name == null) {
+        if (player == null
+                || name == null) {
             return false;
         }
 
@@ -236,7 +275,9 @@ public class FactionManager {
 
         playerFactions.put(
                 player.getUniqueId(),
-                normalize(faction.getName())
+                normalize(
+                        faction.getName()
+                )
         );
 
         removeInvite(player);
@@ -250,7 +291,9 @@ public class FactionManager {
     // SALIR
     // =========================================================
 
-    public boolean leaveFaction(Player player) {
+    public boolean leaveFaction(
+            Player player
+    ) {
 
         if (player == null) {
             return false;
@@ -292,7 +335,8 @@ public class FactionManager {
             Faction faction
     ) {
 
-        if (target == null || faction == null) {
+        if (target == null
+                || faction == null) {
             return false;
         }
 
@@ -307,6 +351,10 @@ public class FactionManager {
                                 20
                         );
 
+        if (maxMembers < 1) {
+            maxMembers = 20;
+        }
+
         if (faction.getMembers().size()
                 >= maxMembers) {
 
@@ -315,7 +363,9 @@ public class FactionManager {
 
         invites.put(
                 target.getUniqueId(),
-                normalize(faction.getName())
+                normalize(
+                        faction.getName()
+                )
         );
 
         return true;
@@ -326,7 +376,8 @@ public class FactionManager {
             String factionName
     ) {
 
-        if (player == null || factionName == null) {
+        if (player == null
+                || factionName == null) {
             return false;
         }
 
@@ -341,7 +392,9 @@ public class FactionManager {
         );
     }
 
-    public void removeInvite(Player player) {
+    public void removeInvite(
+            Player player
+    ) {
 
         if (player == null) {
             return;
@@ -352,7 +405,9 @@ public class FactionManager {
         );
     }
 
-    public String getInvite(Player player) {
+    public String getInvite(
+            Player player
+    ) {
 
         if (player == null) {
             return null;
@@ -372,7 +427,8 @@ public class FactionManager {
             UUID target
     ) {
 
-        if (faction == null || target == null) {
+        if (faction == null
+                || target == null) {
             return false;
         }
 
@@ -397,12 +453,24 @@ public class FactionManager {
     // RANKS
     // =========================================================
 
+    /*
+     * Promoción:
+     *
+     * MEMBER
+     *     ↓
+     * CAPTAIN
+     *     ↓
+     * CO-LEADER
+     *
+     * LEADER no puede ser promocionado.
+     */
     public boolean promote(
             Faction faction,
             UUID uuid
     ) {
 
-        if (faction == null || uuid == null) {
+        if (faction == null
+                || uuid == null) {
             return false;
         }
 
@@ -414,42 +482,87 @@ public class FactionManager {
             return false;
         }
 
-        if (faction.isOfficer(uuid)) {
+        if (faction.isCoLeader(uuid)) {
             return false;
         }
 
-        faction.promote(uuid);
+        if (faction.isCaptain(uuid)) {
+
+            faction.promoteToCoLeader(uuid);
+
+            saveAll();
+
+            return true;
+        }
+
+        faction.promoteToCaptain(uuid);
 
         saveAll();
 
         return true;
     }
 
+    /*
+     * Democión:
+     *
+     * CO-LEADER
+     *     ↓
+     * CAPTAIN
+     *     ↓
+     * MEMBER
+     */
     public boolean demote(
             Faction faction,
             UUID uuid
     ) {
 
-        if (faction == null || uuid == null) {
+        if (faction == null
+                || uuid == null) {
             return false;
         }
 
-        if (!faction.isOfficer(uuid)) {
+        if (!faction.isMember(uuid)) {
             return false;
         }
 
-        faction.demote(uuid);
+        if (faction.isLeader(uuid)) {
+            return false;
+        }
 
-        saveAll();
+        if (faction.isCoLeader(uuid)) {
 
-        return true;
+            faction.demoteFromCoLeader(uuid);
+
+            /*
+             * Al bajar de Co-Leader pasa
+             * automáticamente a Captain.
+             */
+            faction.promoteToCaptain(uuid);
+
+            saveAll();
+
+            return true;
+        }
+
+        if (faction.isCaptain(uuid)) {
+
+            faction.demoteFromCaptain(uuid);
+
+            saveAll();
+
+            return true;
+        }
+
+        return false;
     }
 
     // =========================================================
     // RANGOS
     // =========================================================
 
-    public boolean isLeader(Player player) {
+    public boolean isLeader(
+            Player player
+    ) {
 
         if (player == null) {
             return false;
@@ -464,7 +577,9 @@ public class FactionManager {
         );
     }
 
-    public boolean isOfficer(Player player) {
+    public boolean isCoLeader(
+            Player player
+    ) {
 
         if (player == null) {
             return false;
@@ -474,22 +589,122 @@ public class FactionManager {
                 getFaction(player);
 
         return faction != null
-                && faction.isOfficer(
+                && faction.isCoLeader(
                 player.getUniqueId()
         );
     }
 
-    public boolean canManageFaction(Player player) {
+    public boolean isCaptain(
+            Player player
+    ) {
+
+        if (player == null) {
+            return false;
+        }
+
+        Faction faction =
+                getFaction(player);
+
+        return faction != null
+                && faction.isCaptain(
+                player.getUniqueId()
+        );
+    }
+
+    /*
+     * Compatibilidad con código anterior.
+     *
+     * Officer ya no existe como rango.
+     * Se considera equivalente a Captain.
+     */
+    public boolean isOfficer(
+            Player player
+    ) {
+
+        return isCaptain(player);
+    }
+
+    public Faction.FactionRole getRole(
+            Player player
+    ) {
+
+        if (player == null) {
+            return null;
+        }
+
+        Faction faction =
+                getFaction(player);
+
+        if (faction == null) {
+            return null;
+        }
+
+        return faction.getRole(
+                player.getUniqueId()
+        );
+    }
+
+    public Faction.FactionRole getRole(
+            UUID uuid
+    ) {
+
+        if (uuid == null) {
+            return null;
+        }
+
+        Faction faction =
+                getFaction(uuid);
+
+        if (faction == null) {
+            return null;
+        }
+
+        return faction.getRole(uuid);
+    }
+
+    public boolean hasPermission(
+            Player player,
+            Faction.FactionPermission permission
+    ) {
+
+        if (player == null
+                || permission == null) {
+            return false;
+        }
+
+        Faction faction =
+                getFaction(player);
+
+        if (faction == null) {
+            return false;
+        }
+
+        return faction.hasPermission(
+                player.getUniqueId(),
+                permission
+        );
+    }
+
+    public boolean canManageFaction(
+            Player player
+    ) {
+
+        if (player == null) {
+            return false;
+        }
 
         return isLeader(player)
-                || isOfficer(player);
+                || isCoLeader(player)
+                || isCaptain(player);
     }
 
     // =========================================================
     // FACTION HOME
     // =========================================================
 
-    public boolean setHome(Player player) {
+    public boolean setHome(
+            Player player
+    ) {
 
         if (player == null) {
             return false;
@@ -502,14 +717,19 @@ public class FactionManager {
             return false;
         }
 
-        if (!isLeader(player)
-                && !isOfficer(player)) {
-
+        if (!hasPermission(
+                player,
+                Faction.FactionPermission.SET_HOME
+        )) {
             return false;
         }
 
         Location location =
                 player.getLocation();
+
+        if (plugin.getClaimManager() == null) {
+            return false;
+        }
 
         Faction claimedFaction =
                 plugin.getClaimManager()
@@ -534,7 +754,9 @@ public class FactionManager {
         return true;
     }
 
-    public boolean hasHome(Player player) {
+    public boolean hasHome(
+            Player player
+    ) {
 
         if (player == null) {
             return false;
@@ -547,7 +769,9 @@ public class FactionManager {
                 && faction.hasHome();
     }
 
-    public Location getHome(Player player) {
+    public Location getHome(
+            Player player
+    ) {
 
         if (player == null) {
             return null;
@@ -572,7 +796,8 @@ public class FactionManager {
             Faction target
     ) {
 
-        if (faction == null || target == null) {
+        if (faction == null
+                || target == null) {
             return false;
         }
 
@@ -598,7 +823,8 @@ public class FactionManager {
             Faction target
     ) {
 
-        if (faction == null || target == null) {
+        if (faction == null
+                || target == null) {
             return false;
         }
 
@@ -624,7 +850,8 @@ public class FactionManager {
             Faction target
     ) {
 
-        if (faction == null || target == null) {
+        if (faction == null
+                || target == null) {
             return false;
         }
 
@@ -650,7 +877,8 @@ public class FactionManager {
             Faction target
     ) {
 
-        if (faction == null || target == null) {
+        if (faction == null
+                || target == null) {
             return false;
         }
 
@@ -733,7 +961,9 @@ public class FactionManager {
     // MUERTE / PÉRDIDA DE DTR
     // =========================================================
 
-    public boolean handleDeath(Player player) {
+    public boolean handleDeath(
+            Player player
+    ) {
 
         if (player == null) {
             return false;
@@ -755,16 +985,9 @@ public class FactionManager {
         }
 
         double loss =
-                plugin.getConfig()
-                        .getDouble(
-                                "factions.dtr-loss-on-death",
-                                1.0
-                        );
+                getDtrLossOnDeath();
 
-        if (Double.isNaN(loss)
-                || Double.isInfinite(loss)
-                || loss <= 0.0) {
-
+        if (loss <= 0.0) {
             return false;
         }
 
@@ -778,13 +1001,17 @@ public class FactionManager {
         return faction.getDtr() < oldDtr;
     }
 
-    public boolean isRaidable(Faction faction) {
+    public boolean isRaidable(
+            Faction faction
+    ) {
 
         return faction != null
                 && faction.isRaidable();
     }
 
-    public boolean isRaidable(Player player) {
+    public boolean isRaidable(
+            Player player
+    ) {
 
         if (player == null) {
             return false;
@@ -866,10 +1093,12 @@ public class FactionManager {
 
     public void regenerateDtr() {
 
-        if (!plugin.getConfig().getBoolean(
-                "factions.dtr-regeneration",
-                true
-        )) {
+        if (!plugin.getConfig()
+                .getBoolean(
+                        "factions.dtr-regeneration",
+                        true
+                )) {
+
             return;
         }
 
@@ -885,7 +1114,9 @@ public class FactionManager {
         }
 
         long regenerationInterval =
-                regenerationMinutes * 60L * 1000L;
+                regenerationMinutes
+                        * 60L
+                        * 1000L;
 
         double regenerationAmount =
                 plugin.getConfig()
@@ -894,67 +1125,179 @@ public class FactionManager {
                                 0.05
                         );
 
-        if (Double.isNaN(regenerationAmount)
-                || Double.isInfinite(regenerationAmount)
+        if (Double.isNaN(
+                regenerationAmount
+        )
+                || Double.isInfinite(
+                regenerationAmount
+        )
                 || regenerationAmount <= 0.0) {
 
             regenerationAmount = 0.05;
         }
 
-        double maxDtr =
-                getMaxDtr();
-
         long now =
                 System.currentTimeMillis();
 
         for (Faction faction :
-                new ArrayList<>(factions.values())) {
+                new ArrayList<>(
+                        factions.values()
+                )) {
 
             if (faction == null) {
                 continue;
             }
 
-            if (faction.isRaidable()) {
+            /*
+             * No regenerar si:
+             *
+             * - está raidable
+             * - tiene DTR congelado
+             * - ya está en máximo
+             */
+            if (!faction.canRegenerateDtr()) {
                 continue;
+            }
+
+            double factionMaxDtr =
+                    faction.getMaxDtr();
+
+            /*
+             * Si por alguna razón el maxDTR
+             * de la faction no coincide con config,
+             * respetamos el de la propia faction.
+             */
+            if (factionMaxDtr <= 0.0) {
+                faction.setMaxDtr(
+                        getMaxDtr()
+                );
+
+                factionMaxDtr =
+                        faction.getMaxDtr();
             }
 
             String key =
-                    normalize(faction.getName());
+                    normalize(
+                            faction.getName()
+                    );
 
-            long last =
+            long factionLast =
+                    faction.getLastDtrRegeneration();
+
+            long mapLast =
                     lastDtrRegeneration
                             .getOrDefault(
                                     key,
-                                    now
+                                    factionLast
                             );
 
-            if (now - last <
-                    regenerationInterval) {
+            long last =
+                    Math.max(
+                            factionLast,
+                            mapLast
+                    );
+
+            if (last <= 0L) {
+                last = now;
+            }
+
+            if (now - last
+                    < regenerationInterval) {
 
                 continue;
             }
 
+            /*
+             * Actualizamos ambos sistemas para
+             * mantener compatibilidad.
+             */
             lastDtrRegeneration.put(
                     key,
+                    now
+            );
+
+            faction.setLastDtrRegeneration(
                     now
             );
 
             double currentDtr =
                     faction.getDtr();
 
-            if (currentDtr >= maxDtr) {
+            if (currentDtr >= factionMaxDtr) {
                 continue;
             }
 
             double newDtr =
                     Math.min(
-                            maxDtr,
+                            factionMaxDtr,
                             currentDtr
                                     + regenerationAmount
                     );
 
             faction.setDtr(newDtr);
         }
+    }
+
+    // =========================================================
+    // DTR FREEZE
+    // =========================================================
+
+    public void freezeDtr(
+            Faction faction
+    ) {
+
+        if (faction == null) {
+            return;
+        }
+
+        faction.freezeDtr();
+
+        saveAll();
+    }
+
+    public void unfreezeDtr(
+            Faction faction
+    ) {
+
+        if (faction == null) {
+            return;
+        }
+
+        faction.unfreezeDtr();
+
+        faction.setLastDtrRegeneration(
+                System.currentTimeMillis()
+        );
+
+        lastDtrRegeneration.put(
+                normalize(
+                        faction.getName()
+                ),
+                System.currentTimeMillis()
+        );
+
+        saveAll();
+    }
+
+    public boolean isDtrFrozen(
+            Faction faction
+    ) {
+
+        return faction != null
+                && faction.isDtrFrozen();
+    }
+
+    public boolean isDtrFrozen(
+            Player player
+    ) {
+
+        if (player == null) {
+            return false;
+        }
+
+        return isDtrFrozen(
+                getFaction(player)
+        );
     }
 
     // =========================================================
@@ -977,11 +1320,20 @@ public class FactionManager {
         }
 
         double maxDtr =
-                getMaxDtr();
+                faction.getMaxDtr();
+
+        if (maxDtr <= 0.0) {
+            maxDtr = getMaxDtr();
+
+            faction.setMaxDtr(maxDtr);
+        }
 
         dtr = Math.max(
                 0.0,
-                Math.min(dtr, maxDtr)
+                Math.min(
+                        dtr,
+                        maxDtr
+                )
         );
 
         faction.setDtr(dtr);
@@ -1006,23 +1358,28 @@ public class FactionManager {
         }
 
         double maxDtr =
-                getMaxDtr();
+                faction.getMaxDtr();
 
         double newDtr =
                 Math.min(
                         maxDtr,
-                        faction.getDtr() + amount
+                        faction.getDtr()
+                                + amount
                 );
 
         faction.setDtr(newDtr);
 
-        if (faction.getDtr() > 0.0) {
+        long now =
+                System.currentTimeMillis();
 
-            lastDtrRegeneration.put(
-                    normalize(faction.getName()),
-                    System.currentTimeMillis()
-            );
-        }
+        faction.setLastDtrRegeneration(now);
+
+        lastDtrRegeneration.put(
+                normalize(
+                        faction.getName()
+                ),
+                now
+        );
 
         saveAll();
     }
@@ -1052,11 +1409,15 @@ public class FactionManager {
     // UTILIDADES
     // =========================================================
 
-    private String normalize(String text) {
+    private String normalize(
+            String text
+    ) {
 
         return text
                 .trim()
-                .toLowerCase(Locale.ROOT);
+                .toLowerCase(
+                        Locale.ROOT
+                );
     }
 
     public Collection<Faction> getFactions() {
@@ -1096,8 +1457,9 @@ public class FactionManager {
                 || !database.isConnected()) {
 
             plugin.getLogger().warning(
-                    "SQLite no está disponible. " +
-                    "FactionManager funcionará sin persistencia."
+                    "SQLite no está disponible. "
+                            + "FactionManager funcionará "
+                            + "sin persistencia."
             );
 
             return;
@@ -1126,7 +1488,8 @@ public class FactionManager {
                     """);
 
             plugin.getLogger().info(
-                    "Tablas de persistencia de Factions verificadas."
+                    "Tablas de persistencia de "
+                            + "Factions verificadas."
             );
 
         } catch (SQLException e) {
@@ -1183,7 +1546,9 @@ public class FactionManager {
     // CARGAR FACTIONS
     // =========================================================
 
-    private void loadFactions(Connection connection) {
+    private void loadFactions(
+            Connection connection
+    ) {
 
         String sql = """
                 SELECT name, leader, dtr, balance
@@ -1211,11 +1576,14 @@ public class FactionManager {
                 UUID leader;
 
                 try {
+
                     leader =
                             UUID.fromString(
                                     leaderString
                             );
+
                 } catch (IllegalArgumentException e) {
+
                     continue;
                 }
 
@@ -1225,6 +1593,9 @@ public class FactionManager {
                 double balance =
                         result.getDouble("balance");
 
+                double maxDtr =
+                        getMaxDtr();
+
                 Faction faction =
                         new Faction(
                                 name,
@@ -1233,9 +1604,10 @@ public class FactionManager {
                                         0.0,
                                         Math.min(
                                                 dtr,
-                                                getMaxDtr()
+                                                maxDtr
                                         )
-                                )
+                                ),
+                                maxDtr
                         );
 
                 faction.setBalance(
@@ -1258,16 +1630,24 @@ public class FactionManager {
                         key
                 );
 
+                long now =
+                        System.currentTimeMillis();
+
                 lastDtrRegeneration.put(
                         key,
-                        System.currentTimeMillis()
+                        now
+                );
+
+                faction.setLastDtrRegeneration(
+                        now
                 );
             }
 
         } catch (SQLException e) {
 
             plugin.getLogger().severe(
-                    "Error cargando Factions desde SQLite."
+                    "Error cargando Factions "
+                            + "desde SQLite."
             );
 
             e.printStackTrace();
@@ -1314,11 +1694,14 @@ public class FactionManager {
                 UUID uuid;
 
                 try {
+
                     uuid =
                             UUID.fromString(
                                     uuidString
                             );
+
                 } catch (IllegalArgumentException e) {
+
                     continue;
                 }
 
@@ -1326,18 +1709,55 @@ public class FactionManager {
 
                 playerFactions.put(
                         uuid,
-                        normalize(faction.getName())
+                        normalize(
+                                faction.getName()
+                        )
                 );
 
+                /*
+                 * LEADER ya viene definido por
+                 * el constructor.
+                 */
+                if ("LEADER".equalsIgnoreCase(role)) {
+
+                    continue;
+                }
+
+                /*
+                 * Nuevo sistema.
+                 */
+                if ("CO_LEADER".equalsIgnoreCase(role)
+                        || "CO-LEADER".equalsIgnoreCase(role)) {
+
+                    faction.promoteToCoLeader(uuid);
+
+                    continue;
+                }
+
+                if ("CAPTAIN".equalsIgnoreCase(role)) {
+
+                    faction.promoteToCaptain(uuid);
+
+                    continue;
+                }
+
+                /*
+                 * Compatibilidad con factions
+                 * antiguas que tenían OFFICER.
+                 *
+                 * OFFICER -> CAPTAIN.
+                 */
                 if ("OFFICER".equalsIgnoreCase(role)) {
-                    faction.promote(uuid);
+
+                    faction.promoteToCaptain(uuid);
                 }
             }
 
         } catch (SQLException e) {
 
             plugin.getLogger().severe(
-                    "Error cargando miembros de Factions."
+                    "Error cargando miembros "
+                            + "de Factions."
             );
 
             e.printStackTrace();
@@ -1358,7 +1778,9 @@ public class FactionManager {
                 """;
 
         try (PreparedStatement statement =
-                     connection.prepareStatement(alliesSql);
+                     connection.prepareStatement(
+                             alliesSql
+                     );
              ResultSet result =
                      statement.executeQuery()) {
 
@@ -1366,11 +1788,15 @@ public class FactionManager {
 
                 Faction faction =
                         getFaction(
-                                result.getString("faction")
+                                result.getString(
+                                        "faction"
+                                )
                         );
 
                 String target =
-                        result.getString("target");
+                        result.getString(
+                                "target"
+                        );
 
                 if (faction != null
                         && target != null) {
@@ -1394,7 +1820,9 @@ public class FactionManager {
                 """;
 
         try (PreparedStatement statement =
-                     connection.prepareStatement(enemiesSql);
+                     connection.prepareStatement(
+                             enemiesSql
+                     );
              ResultSet result =
                      statement.executeQuery()) {
 
@@ -1402,11 +1830,15 @@ public class FactionManager {
 
                 Faction faction =
                         getFaction(
-                                result.getString("faction")
+                                result.getString(
+                                        "faction"
+                                )
                         );
 
                 String target =
-                        result.getString("target");
+                        result.getString(
+                                "target"
+                        );
 
                 if (faction != null
                         && target != null) {
@@ -1447,7 +1879,9 @@ public class FactionManager {
 
                 Faction faction =
                         getFaction(
-                                result.getString("faction")
+                                result.getString(
+                                        "faction"
+                                )
                         );
 
                 if (faction == null) {
@@ -1461,11 +1895,13 @@ public class FactionManager {
                         Bukkit.getWorld(worldName);
 
                 if (world == null) {
+
                     plugin.getLogger().warning(
                             "No se pudo cargar el home de "
                                     + faction.getName()
                                     + ": mundo no encontrado."
                     );
+
                     continue;
                 }
 
@@ -1485,7 +1921,8 @@ public class FactionManager {
         } catch (SQLException e) {
 
             plugin.getLogger().severe(
-                    "Error cargando homes de Factions."
+                    "Error cargando homes "
+                            + "de Factions."
             );
 
             e.printStackTrace();
@@ -1522,11 +1959,14 @@ public class FactionManager {
                 UUID uuid;
 
                 try {
+
                     uuid =
                             UUID.fromString(
                                     uuidString
                             );
+
                 } catch (IllegalArgumentException e) {
+
                     continue;
                 }
 
@@ -1614,7 +2054,8 @@ public class FactionManager {
         } catch (SQLException e) {
 
             plugin.getLogger().severe(
-                    "Error guardando Factions en SQLite."
+                    "Error guardando Factions "
+                            + "en SQLite."
             );
 
             e.printStackTrace();
@@ -1686,7 +2127,8 @@ public class FactionManager {
 
                 statement.setString(
                         2,
-                        faction.getLeader().toString()
+                        faction.getLeader()
+                                .toString()
                 );
 
                 statement.setDouble(
@@ -1740,10 +2182,19 @@ public class FactionManager {
                     String role;
 
                     if (faction.isLeader(uuid)) {
+
                         role = "LEADER";
-                    } else if (faction.isOfficer(uuid)) {
-                        role = "OFFICER";
+
+                    } else if (faction.isCoLeader(uuid)) {
+
+                        role = "CO_LEADER";
+
+                    } else if (faction.isCaptain(uuid)) {
+
+                        role = "CAPTAIN";
+
                     } else {
+
                         role = "MEMBER";
                     }
 
@@ -1787,7 +2238,9 @@ public class FactionManager {
                 """;
 
         try (PreparedStatement statement =
-                     connection.prepareStatement(allySql)) {
+                     connection.prepareStatement(
+                             allySql
+                     )) {
 
             for (Faction faction :
                     factions.values()) {
@@ -1830,7 +2283,9 @@ public class FactionManager {
                 """;
 
         try (PreparedStatement statement =
-                     connection.prepareStatement(enemySql)) {
+                     connection.prepareStatement(
+                             enemySql
+                     )) {
 
             for (Faction faction :
                     factions.values()) {
@@ -2009,7 +2464,9 @@ public class FactionManager {
     // GUARDAR STATS DE UN JUGADOR
     // =========================================================
 
-    private void savePlayerStats(UUID uuid) {
+    private void savePlayerStats(
+            UUID uuid
+    ) {
 
         if (uuid == null) {
             return;
@@ -2020,6 +2477,7 @@ public class FactionManager {
 
         if (database == null
                 || !database.isConnected()) {
+
             return;
         }
 
@@ -2069,7 +2527,8 @@ public class FactionManager {
         } catch (SQLException e) {
 
             plugin.getLogger().warning(
-                    "No se pudieron guardar estadísticas de "
+                    "No se pudieron guardar "
+                            + "estadísticas de "
                             + uuid
             );
         }
