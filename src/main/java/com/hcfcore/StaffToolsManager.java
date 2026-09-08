@@ -28,12 +28,6 @@ public class StaffManager {
         this.plugin = plugin;
     }
 
-    /*
-     * =========================================================
-     * STAFF CHECK
-     * =========================================================
-     */
-
     public boolean isStaff(Player player) {
 
         if (player == null) {
@@ -44,12 +38,6 @@ public class StaffManager {
                 player.getUniqueId()
         );
     }
-
-    /*
-     * =========================================================
-     * ENABLE STAFF MODE
-     * =========================================================
-     */
 
     public boolean enable(Player player) {
 
@@ -146,12 +134,6 @@ public class StaffManager {
         return true;
     }
 
-    /*
-     * =========================================================
-     * DISABLE STAFF MODE
-     * =========================================================
-     */
-
     public boolean disable(Player player) {
 
         if (player == null || !isStaff(player)) {
@@ -228,28 +210,11 @@ public class StaffManager {
             );
         }
 
-        /*
-         * Desactivar vuelo.
-         */
-
         player.setFlying(false);
         player.setAllowFlight(false);
 
         return true;
     }
-
-    /*
-     * =========================================================
-     * QUIT
-     * =========================================================
-     *
-     * Importante:
-     *
-     * Bukkit guarda el inventario actual del jugador al salir.
-     * Por eso NO debemos borrar la copia antes de restaurarla.
-     *
-     * Restauramos primero y luego limpiamos los datos.
-     */
 
     public void handleQuit(Player player) {
 
@@ -257,23 +222,14 @@ public class StaffManager {
             return;
         }
 
-        if (!isStaff(player)) {
-            return;
-        }
+        UUID uuid =
+                player.getUniqueId();
 
-        /*
-         * Restaurar inventario antes de que
-         * Bukkit termine de procesar el quit.
-         */
-
-        disable(player);
+        previousGameModes.remove(uuid);
+        previousInventories.remove(uuid);
+        previousArmor.remove(uuid);
+        previousOffhand.remove(uuid);
     }
-
-    /*
-     * =========================================================
-     * DISABLE ALL
-     * =========================================================
-     */
 
     public void disableAll() {
 
@@ -292,12 +248,6 @@ public class StaffManager {
         previousArmor.clear();
         previousOffhand.clear();
     }
-
-    /*
-     * =========================================================
-     * STAFF COUNT
-     * =========================================================
-     */
 
     public int getStaffCount() {
 
