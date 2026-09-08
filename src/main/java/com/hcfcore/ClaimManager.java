@@ -15,13 +15,15 @@ public class ClaimManager {
 
     private final HCFCore plugin;
 
-    // Mundo + coordenadas de chunk → faction
+    /**
+     * Formato:
+     * world:chunkX:chunkZ -> faction
+     */
     private final Map<String, String> claims = new HashMap<>();
 
     public ClaimManager(HCFCore plugin) {
         this.plugin = plugin;
 
-        // Cargar claims guardados en SQLite
         loadAll();
     }
 
@@ -29,6 +31,11 @@ public class ClaimManager {
      * Genera una clave única para un chunk.
      */
     private String getKey(Chunk chunk) {
+
+        if (chunk == null || chunk.getWorld() == null) {
+            return "";
+        }
+
         return chunk.getWorld().getName()
                 + ":"
                 + chunk.getX()
@@ -37,7 +44,7 @@ public class ClaimManager {
     }
 
     /**
-     * Devuelve la faction propietaria del chunk.
+     * Obtiene la faction propietaria de una ubicación.
      */
     public Faction getFactionAt(Location location) {
 
@@ -49,7 +56,7 @@ public class ClaimManager {
 
         String factionName = claims.get(getKey(chunk));
 
-        if (factionName == null) {
+        if (factionName == null || factionName.isBlank()) {
             return null;
         }
 
@@ -87,12 +94,12 @@ public class ClaimManager {
 
         Faction faction = getFactionAt(location);
 
-        // Territorio libre
+        // Wilderness
         if (faction == null) {
             return true;
         }
 
-        // Bypass administrativo
+        // Staff bypass
         if (player.hasPermission("hcf.bypass")) {
             return true;
         }
@@ -101,14 +108,37 @@ public class ClaimManager {
                 plugin.getFactionManager()
                         .getFaction(player);
 
-        // Sin faction
+        // Jugador sin faction
         if (playerFaction == null) {
             return false;
         }
 
-        // Dueño del territorio
         return playerFaction.getName()
                 .equalsIgnoreCase(faction.getName());
+    }
+
+    /**
+     * Comprueba si el jugador tiene permiso para administrar claims.
+     *
+     * Actualmente:
+     * LEADER
+     * CO-LEADER
+     */
+    private boolean canManageClaims(Player player) {
+
+        if (player == null) {
+            return false;
+        }
+
+        if (player.hasPermission("hcf.bypass")) {
+            return true;
+        }
+
+        return plugin.getFactionManager()
+                .hasPermission(
+                        player,
+                        Faction.FactionPermission.MANAGE_CLAIMS
+                );
     }
 
     /**
@@ -120,11 +150,18 @@ public class ClaimManager {
             return false;
         }
 
+        FactionManager factionManager =
+                plugin.getFactionManager();
+
         Faction faction =
-                plugin.getFactionManager()
-                        .getFaction(player);
+                factionManager.getFaction(player);
 
         if (faction == null) {
+            return false;
+        }
+
+        // Solo rangos autorizados
+        if (!canManageClaims(player)) {
             return false;
         }
 
@@ -133,7 +170,11 @@ public class ClaimManager {
 
         String key = getKey(chunk);
 
-        // Ya reclamado
+        if (key.isEmpty()) {
+            return false;
+        }
+
+        // Ya existe un claim en este chunk
         if (claims.containsKey(key)) {
             return false;
         }
@@ -145,6 +186,10 @@ public class ClaimManager {
                                 20
                         );
 
+        if (maxClaims < 1) {
+            maxClaims = 1;
+        }
+
         int currentClaims =
                 getClaimCount(faction);
 
@@ -152,7 +197,10 @@ public class ClaimManager {
             return false;
         }
 
-        // Si se exige que sean adyacentes
+        /*
+         * Los claims nuevos deben tocar
+         * territorio existente de la faction.
+         */
         boolean requireAdjacent =
                 plugin.getConfig()
                         .getBoolean(
@@ -162,10 +210,7 @@ public class ClaimManager {
 
         if (requireAdjacent
                 && currentClaims > 0
-                && !hasAdjacentClaim(
-                        faction,
-                        chunk
-                )) {
+                && !hasAdjacentClaim(faction, chunk)) {
 
             return false;
         }
@@ -175,14 +220,13 @@ public class ClaimManager {
                 faction.getName().toLowerCase()
         );
 
-        // Guardar inmediatamente
         saveAll();
 
         return true;
     }
 
     /**
-     * Abandona el claim actual.
+     * Abandona el claim donde está el jugador.
      */
     public boolean unclaim(Player player) {
 
@@ -195,6 +239,10 @@ public class ClaimManager {
                         .getFaction(player);
 
         if (faction == null) {
+            return false;
+        }
+
+        if (!canManageClaims(player)) {
             return false;
         }
 
@@ -215,16 +263,35 @@ public class ClaimManager {
             return false;
         }
 
+        /*
+         * Evita dejar un territorio
+         * dividido si hay más de un claim.
+         *
+         * Se puede desactivar mediante config.
+         */
+        boolean preventSplitting =
+                plugin.getConfig()
+                        .getBoolean(
+                                "factions.prevent-split-claims",
+                                false
+                        );
+
+        if (preventSplitting
+                && getClaimCount(faction) > 1
+                && wouldSplitClaims(faction, chunk)) {
+
+            return false;
+        }
+
         claims.remove(key);
 
-        // Guardar inmediatamente
         saveAll();
 
         return true;
     }
 
     /**
-     * Cuenta los chunks reclamados por una faction.
+     * Cuenta los claims de una faction.
      */
     public int getClaimCount(Faction faction) {
 
@@ -232,16 +299,16 @@ public class ClaimManager {
             return 0;
         }
 
-        int count = 0;
-
         String factionName =
-                faction.getName().toLowerCase();
+                faction.getName();
+
+        int count = 0;
 
         for (String owner : claims.values()) {
 
-            if (owner.equalsIgnoreCase(
-                    factionName
-            )) {
+            if (owner != null
+                    && owner.equalsIgnoreCase(factionName)) {
+
                 count++;
             }
         }
@@ -251,7 +318,7 @@ public class ClaimManager {
 
     /**
      * Comprueba si el chunk toca
-     * otro claim de la misma faction.
+     * territorio de la misma faction.
      */
     private boolean hasAdjacentClaim(
             Faction faction,
@@ -309,6 +376,195 @@ public class ClaimManager {
     }
 
     /**
+     * Comprueba si quitar un claim
+     * separaría el territorio.
+     */
+    private boolean wouldSplitClaims(
+            Faction faction,
+            Chunk removedChunk
+    ) {
+
+        if (faction == null || removedChunk == null) {
+            return false;
+        }
+
+        String removedKey =
+                getKey(removedChunk);
+
+        String originalOwner =
+                claims.remove(removedKey);
+
+        if (originalOwner == null) {
+            return false;
+        }
+
+        try {
+
+            int remaining = getClaimCount(faction);
+
+            if (remaining <= 1) {
+                return false;
+            }
+
+            /*
+             * Buscar un claim cualquiera
+             * para comenzar el flood fill.
+             */
+            Chunk start = null;
+
+            for (Map.Entry<String, String> entry : claims.entrySet()) {
+
+                if (!entry.getValue()
+                        .equalsIgnoreCase(faction.getName())) {
+                    continue;
+                }
+
+                Chunk parsed =
+                        parseChunkKey(entry.getKey());
+
+                if (parsed != null) {
+                    start = parsed;
+                    break;
+                }
+            }
+
+            if (start == null) {
+                return false;
+            }
+
+            java.util.Set<String> visited =
+                    new java.util.HashSet<>();
+
+            java.util.ArrayDeque<Chunk> queue =
+                    new java.util.ArrayDeque<>();
+
+            queue.add(start);
+            visited.add(getKey(start));
+
+            while (!queue.isEmpty()) {
+
+                Chunk current = queue.poll();
+
+                int x = current.getX();
+                int z = current.getZ();
+
+                Chunk[] neighbors = {
+                        current.getWorld().getChunkAt(x + 1, z),
+                        current.getWorld().getChunkAt(x - 1, z),
+                        current.getWorld().getChunkAt(x, z + 1),
+                        current.getWorld().getChunkAt(x, z - 1)
+                };
+
+                for (Chunk neighbor : neighbors) {
+
+                    String neighborKey =
+                            getKey(neighbor);
+
+                    if (visited.contains(neighborKey)) {
+                        continue;
+                    }
+
+                    if (!ownsChunk(faction, neighbor)) {
+                        continue;
+                    }
+
+                    visited.add(neighborKey);
+                    queue.add(neighbor);
+                }
+            }
+
+            /*
+             * Si no visitamos todos los claims,
+             * el territorio se divide.
+             */
+            return visited.size() < remaining;
+
+        } finally {
+
+            claims.put(
+                    removedKey,
+                    originalOwner
+            );
+        }
+    }
+
+    /**
+     * Convierte:
+     *
+     * world:x:z
+     *
+     * en Chunk.
+     */
+    private Chunk parseChunkKey(String key) {
+
+        if (key == null || key.isBlank()) {
+            return null;
+        }
+
+        try {
+
+            int lastSeparator =
+                    key.lastIndexOf(':');
+
+            if (lastSeparator <= 0) {
+                return null;
+            }
+
+            String coordinates =
+                    key.substring(
+                            0,
+                            lastSeparator
+                    );
+
+            String chunkZString =
+                    key.substring(
+                            lastSeparator + 1
+                    );
+
+            int secondSeparator =
+                    coordinates.lastIndexOf(':');
+
+            if (secondSeparator <= 0) {
+                return null;
+            }
+
+            String worldName =
+                    coordinates.substring(
+                            0,
+                            secondSeparator
+                    );
+
+            String chunkXString =
+                    coordinates.substring(
+                            secondSeparator + 1
+                    );
+
+            int chunkX =
+                    Integer.parseInt(chunkXString);
+
+            int chunkZ =
+                    Integer.parseInt(chunkZString);
+
+            org.bukkit.World world =
+                    plugin.getServer()
+                            .getWorld(worldName);
+
+            if (world == null) {
+                return null;
+            }
+
+            return world.getChunkAt(
+                    chunkX,
+                    chunkZ
+            );
+
+        } catch (Exception ignored) {
+
+            return null;
+        }
+    }
+
+    /**
      * Obtiene el dueño de un chunk.
      */
     public String getClaimOwner(Chunk chunk) {
@@ -323,9 +579,10 @@ public class ClaimManager {
     }
 
     /**
-     * Obtiene el nombre del claim donde está el jugador.
+     * Obtiene el nombre de la faction
+     * propietaria de la ubicación.
      *
-     * Usado por el scoreboard.
+     * Wilderness si no hay claim.
      */
     public String getClaimName(Player player) {
 
@@ -334,7 +591,9 @@ public class ClaimManager {
         }
 
         Faction faction =
-                getFactionAt(player.getLocation());
+                getFactionAt(
+                        player.getLocation()
+                );
 
         if (faction == null) {
             return "Wilderness";
@@ -345,7 +604,9 @@ public class ClaimManager {
 
     /**
      * Elimina todos los claims
-     * pertenecientes a una faction.
+     * de una faction.
+     *
+     * Se utiliza al hacer /f disband.
      */
     public void removeFactionClaims(
             Faction faction
@@ -356,13 +617,15 @@ public class ClaimManager {
         }
 
         String name =
-                faction.getName().toLowerCase();
+                faction.getName();
 
-        boolean removed = claims.entrySet().removeIf(
-                entry ->
-                        entry.getValue()
-                                .equalsIgnoreCase(name)
-        );
+        boolean removed =
+                claims.entrySet()
+                        .removeIf(entry ->
+                                entry.getValue() != null
+                                        && entry.getValue()
+                                        .equalsIgnoreCase(name)
+                        );
 
         if (removed) {
             saveAll();
@@ -408,10 +671,13 @@ public class ClaimManager {
                 FROM claims
                 """;
 
-        try (PreparedStatement statement =
-                     connection.prepareStatement(sql);
-             ResultSet result =
-                     statement.executeQuery()) {
+        try (
+                PreparedStatement statement =
+                        connection.prepareStatement(sql);
+
+                ResultSet result =
+                        statement.executeQuery()
+        ) {
 
             int loaded = 0;
 
@@ -430,7 +696,10 @@ public class ClaimManager {
                         result.getString("faction");
 
                 if (world == null
-                        || faction == null) {
+                        || world.isBlank()
+                        || faction == null
+                        || faction.isBlank()) {
+
                     continue;
                 }
 
@@ -507,23 +776,30 @@ public class ClaimManager {
 
             try {
 
-                try (PreparedStatement delete =
-                             connection.prepareStatement(
-                                     deleteSql
-                             )) {
+                try (
+                        PreparedStatement delete =
+                                connection.prepareStatement(
+                                        deleteSql
+                                )
+                ) {
 
                     delete.executeUpdate();
                 }
 
-                try (PreparedStatement insert =
-                             connection.prepareStatement(
-                                     insertSql
-                             )) {
+                try (
+                        PreparedStatement insert =
+                                connection.prepareStatement(
+                                        insertSql
+                                )
+                ) {
 
-                    for (Map.Entry<String, String> entry
-                            : claims.entrySet()) {
+                    for (
+                            Map.Entry<String, String> entry
+                            : claims.entrySet()
+                    ) {
 
-                        String key = entry.getKey();
+                        String key =
+                                entry.getKey();
 
                         int lastSeparator =
                                 key.lastIndexOf(':');
@@ -577,6 +853,7 @@ public class ClaimManager {
                                     );
 
                         } catch (NumberFormatException e) {
+
                             continue;
                         }
 
@@ -585,6 +862,7 @@ public class ClaimManager {
 
                         if (faction == null
                                 || faction.isBlank()) {
+
                             continue;
                         }
 
