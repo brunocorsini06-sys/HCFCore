@@ -42,6 +42,7 @@ public class HCFCore extends JavaPlugin {
     private TabListManager tabListManager;
     private GUIManager guiManager;
     private StaffManager staffManager;
+    private StaffToolsManager staffToolsManager;
 
     private BukkitTask scoreboardTask;
     private BukkitTask dtrTask;
@@ -57,29 +58,20 @@ public class HCFCore extends JavaPlugin {
 
         /*
          * ==============================
-         * EXTERNAL DEPENDENCIES
+         * EXTERNAL HOOKS
          * ==============================
          */
 
         try {
 
-            /*
-             * LuckPerms
-             */
+            luckPermsHook =
+                    new LuckPermsHook(this);
 
-            luckPermsHook = new LuckPermsHook(this);
+            vaultHook =
+                    new VaultHook(this);
 
-            /*
-             * Vault
-             */
-
-            vaultHook = new VaultHook(this);
-
-            /*
-             * ProtocolLib
-             */
-
-            protocolLibHook = new ProtocolLibHook(this);
+            protocolLibHook =
+                    new ProtocolLibHook(this);
 
         } catch (Exception exception) {
 
@@ -102,7 +94,8 @@ public class HCFCore extends JavaPlugin {
          * ==============================
          */
 
-        databaseManager = new DatabaseManager(this);
+        databaseManager =
+                new DatabaseManager(this);
 
         if (!databaseManager.connect()) {
 
@@ -123,19 +116,47 @@ public class HCFCore extends JavaPlugin {
          * ==============================
          */
 
-        factionManager = new FactionManager(this);
-        claimManager = new ClaimManager(this);
-        combatManager = new CombatManager(this);
-        deathbanManager = new DeathbanManager(this);
-        economyManager = new EconomyManager(this);
-        kitManager = new KitManager(this);
-        classManager = new ClassManager(this);
-        airdropManager = new AirdropManager(this);
-        kothManager = new KothManager(this);
-        scoreboardManager = new ScoreboardManager(this);
-        villagerManager = new VillagerManager(this);
-        tabListManager = new TabListManager(this);
-        staffManager = new StaffManager(this);
+        factionManager =
+                new FactionManager(this);
+
+        claimManager =
+                new ClaimManager(this);
+
+        combatManager =
+                new CombatManager(this);
+
+        deathbanManager =
+                new DeathbanManager(this);
+
+        economyManager =
+                new EconomyManager(this);
+
+        kitManager =
+                new KitManager(this);
+
+        classManager =
+                new ClassManager(this);
+
+        airdropManager =
+                new AirdropManager(this);
+
+        kothManager =
+                new KothManager(this);
+
+        scoreboardManager =
+                new ScoreboardManager(this);
+
+        villagerManager =
+                new VillagerManager(this);
+
+        tabListManager =
+                new TabListManager(this);
+
+        staffManager =
+                new StaffManager(this);
+
+        staffToolsManager =
+                new StaffToolsManager(this);
 
         /*
          * ==============================
@@ -147,7 +168,7 @@ public class HCFCore extends JavaPlugin {
 
         /*
          * ==============================
-         * LISTENERS
+         * EVENTS
          * ==============================
          */
 
@@ -160,11 +181,13 @@ public class HCFCore extends JavaPlugin {
 
         /*
          * ==============================
-         * GUIS
+         * GUI
          * ==============================
          */
 
-        guiManager = new GUIManager(this);
+        guiManager =
+                new GUIManager(this);
+
         guiManager.register();
 
         /*
@@ -173,7 +196,8 @@ public class HCFCore extends JavaPlugin {
          * ==============================
          */
 
-        Commands commands = new Commands(this);
+        Commands commands =
+                new Commands(this);
 
         registerCommand("f", commands);
         registerCommand("hcf", commands);
@@ -192,7 +216,7 @@ public class HCFCore extends JavaPlugin {
 
         /*
          * ==============================
-         * SCOREBOARD
+         * SCOREBOARD TASK
          * ==============================
          */
 
@@ -208,6 +232,7 @@ public class HCFCore extends JavaPlugin {
                                     () -> {
 
                                         if (scoreboardManager != null) {
+
                                             scoreboardManager.updateAll();
                                         }
 
@@ -223,7 +248,7 @@ public class HCFCore extends JavaPlugin {
 
         /*
          * ==============================
-         * DTR
+         * DTR TASK
          * ==============================
          */
 
@@ -234,6 +259,7 @@ public class HCFCore extends JavaPlugin {
                                 () -> {
 
                                     if (factionManager != null) {
+
                                         factionManager.regenerateDtr();
                                     }
 
@@ -244,27 +270,29 @@ public class HCFCore extends JavaPlugin {
 
         /*
          * ==============================
-         * CLASSES
+         * CLASS TASK
          * ==============================
          */
 
         if (classManager != null) {
+
             classManager.startTask();
         }
 
         /*
          * ==============================
-         * COMBAT TAG
+         * COMBAT TASK
          * ==============================
          */
 
         if (combatManager != null) {
+
             combatManager.startCleanupTask();
         }
 
         /*
          * ==============================
-         * AIRDROPS
+         * AIRDROP
          * ==============================
          */
 
@@ -274,6 +302,7 @@ public class HCFCore extends JavaPlugin {
         )) {
 
             if (airdropManager != null) {
+
                 airdropManager.startScheduler();
             }
 
@@ -377,7 +406,11 @@ public class HCFCore extends JavaPlugin {
         );
 
         getLogger().info(
-                "        Staff Manager ACTIVADO"
+                "        Staff Mode ACTIVADO"
+        );
+
+        getLogger().info(
+                "        Staff Tools ACTIVADO"
         );
 
         getLogger().info(
@@ -477,20 +510,29 @@ public class HCFCore extends JavaPlugin {
         );
 
         if (scoreboardTask != null) {
+
             scoreboardTask.cancel();
             scoreboardTask = null;
         }
 
         if (dtrTask != null) {
+
             dtrTask.cancel();
             dtrTask = null;
         }
 
+        /*
+         * Desactivar Staff Mode antes
+         * de apagar el plugin.
+         */
+
         if (staffManager != null) {
+
             staffManager.disableAll();
         }
 
         if (airdropManager != null) {
+
             airdropManager.shutdown();
         }
 
@@ -501,18 +543,22 @@ public class HCFCore extends JavaPlugin {
         }
 
         if (factionManager != null) {
+
             factionManager.saveAll();
         }
 
         if (economyManager != null) {
+
             economyManager.saveAll();
         }
 
         if (claimManager != null) {
+
             claimManager.saveAll();
         }
 
         if (databaseManager != null) {
+
             databaseManager.disconnect();
         }
 
@@ -597,5 +643,9 @@ public class HCFCore extends JavaPlugin {
 
     public StaffManager getStaffManager() {
         return staffManager;
+    }
+
+    public StaffToolsManager getStaffToolsManager() {
+        return staffToolsManager;
     }
 }
