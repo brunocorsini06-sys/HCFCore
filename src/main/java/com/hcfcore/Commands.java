@@ -72,6 +72,9 @@ public class Commands implements CommandExecutor {
             case "balance":
                 return balance(sender);
 
+            case "staff":
+                return staff(sender);
+
             default:
                 return false;
         }
@@ -167,6 +170,114 @@ public class Commands implements CommandExecutor {
     }
 
     // =========================================================
+    // /STAFF
+    // =========================================================
+
+    private boolean staff(
+            CommandSender sender
+    ) {
+
+        if (!(sender instanceof Player)) {
+
+            sender.sendMessage(
+                    ChatColor.RED +
+                    "Este comando solo puede usarse por jugadores."
+            );
+
+            return true;
+        }
+
+        Player player = (Player) sender;
+
+        /*
+         * Verificación mediante LuckPerms.
+         */
+
+        if (plugin.getLuckPermsHook() == null
+                || !plugin.getLuckPermsHook()
+                .hasPermission(
+                        player,
+                        "hcf.staff"
+                )) {
+
+            player.sendMessage(
+                    ChatColor.RED +
+                    "No tienes permiso para usar Staff Mode."
+            );
+
+            return true;
+        }
+
+        StaffManager staffManager =
+                plugin.getStaffManager();
+
+        if (staffManager == null) {
+
+            player.sendMessage(
+                    ChatColor.RED +
+                    "El sistema de Staff Mode no está disponible."
+            );
+
+            return true;
+        }
+
+        /*
+         * Si ya está en Staff Mode,
+         * lo desactivamos.
+         */
+
+        if (staffManager.isStaff(player)) {
+
+            if (!staffManager.disable(player)) {
+
+                player.sendMessage(
+                        ChatColor.RED +
+                        "No se pudo desactivar Staff Mode."
+                );
+
+                return true;
+            }
+
+            player.sendMessage(
+                    ChatColor.RED +
+                    "✘ Staff Mode desactivado."
+            );
+
+            return true;
+        }
+
+        /*
+         * Activar Staff Mode.
+         */
+
+        if (!staffManager.enable(player)) {
+
+            player.sendMessage(
+                    ChatColor.RED +
+                    "No se pudo activar Staff Mode."
+            );
+
+            return true;
+        }
+
+        player.sendMessage(
+                ChatColor.GREEN +
+                "✔ Staff Mode activado."
+        );
+
+        player.sendMessage(
+                ChatColor.GRAY +
+                "Usa " +
+                ChatColor.WHITE +
+                "/staff" +
+                ChatColor.GRAY +
+                " nuevamente para desactivarlo."
+        );
+
+        return true;
+    }
+
+    // =========================================================
     // /F
     // =========================================================
 
@@ -193,10 +304,6 @@ public class Commands implements CommandExecutor {
         Faction faction =
                 manager.getFaction(player);
 
-        // -----------------------------------------------------
-        // /f
-        // -----------------------------------------------------
-
         if (args.length == 0) {
 
             if (faction == null) {
@@ -220,10 +327,6 @@ public class Commands implements CommandExecutor {
 
         String subCommand =
                 args[0].toLowerCase(Locale.ROOT);
-
-        // -----------------------------------------------------
-        // /f create
-        // -----------------------------------------------------
 
         if (subCommand.equals("create")) {
 
@@ -309,10 +412,6 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        // -----------------------------------------------------
-        // /f disband
-        // -----------------------------------------------------
-
         if (subCommand.equals("disband")) {
 
             if (faction == null) {
@@ -359,10 +458,6 @@ public class Commands implements CommandExecutor {
 
             return true;
         }
-
-        // -----------------------------------------------------
-        // /f invite
-        // -----------------------------------------------------
 
         if (subCommand.equals("invite")) {
 
@@ -465,10 +560,6 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        // -----------------------------------------------------
-        // /f join
-        // -----------------------------------------------------
-
         if (subCommand.equals("join")) {
 
             if (faction != null) {
@@ -544,10 +635,6 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        // -----------------------------------------------------
-        // /f leave
-        // -----------------------------------------------------
-
         if (subCommand.equals("leave")) {
 
             if (faction == null) {
@@ -592,10 +679,6 @@ public class Commands implements CommandExecutor {
 
             return true;
         }
-
-        // -----------------------------------------------------
-        // /f kick
-        // -----------------------------------------------------
 
         if (subCommand.equals("kick")) {
 
@@ -681,7 +764,6 @@ public class Commands implements CommandExecutor {
                 return true;
             }
 
-            // Un officer no debería poder expulsar a otro officer
             if (manager.isOfficer(player)
                     && targetFaction.isOfficer(
                     target.getUniqueId()
@@ -728,10 +810,6 @@ public class Commands implements CommandExecutor {
 
             return true;
         }
-
-        // -----------------------------------------------------
-        // /f promote
-        // -----------------------------------------------------
 
         if (subCommand.equals("promote")) {
 
@@ -816,10 +894,6 @@ public class Commands implements CommandExecutor {
 
             return true;
         }
-
-        // -----------------------------------------------------
-        // /f demote
-        // -----------------------------------------------------
 
         if (subCommand.equals("demote")) {
 
@@ -917,10 +991,6 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        // -----------------------------------------------------
-        // /f sethome
-        // -----------------------------------------------------
-
         if (subCommand.equals("sethome")) {
 
             if (faction == null) {
@@ -961,10 +1031,6 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        // -----------------------------------------------------
-        // /f home
-        // -----------------------------------------------------
-
         if (subCommand.equals("home")) {
 
             if (faction == null) {
@@ -999,10 +1065,6 @@ public class Commands implements CommandExecutor {
 
             return true;
         }
-
-        // -----------------------------------------------------
-        // /f ally
-        // -----------------------------------------------------
 
         if (subCommand.equals("ally")) {
 
@@ -1096,10 +1158,6 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        // -----------------------------------------------------
-        // /f enemy
-        // -----------------------------------------------------
-
         if (subCommand.equals("enemy")) {
 
             if (faction == null) {
@@ -1192,10 +1250,6 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        // -----------------------------------------------------
-        // /f who
-        // -----------------------------------------------------
-
         if (subCommand.equals("who")) {
 
             Faction targetFaction;
@@ -1228,10 +1282,6 @@ public class Commands implements CommandExecutor {
             return true;
         }
 
-        // -----------------------------------------------------
-        // AYUDA
-        // -----------------------------------------------------
-
         sendFactionHelp(player);
 
         return true;
@@ -1245,9 +1295,6 @@ public class Commands implements CommandExecutor {
             Player player,
             Faction faction
     ) {
-
-        FactionManager manager =
-                plugin.getFactionManager();
 
         player.sendMessage(
                 ChatColor.GOLD +
@@ -2345,4 +2392,4 @@ public class Commands implements CommandExecutor {
                 amount
         );
     }
-}
+} 
