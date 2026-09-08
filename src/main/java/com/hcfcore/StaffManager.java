@@ -54,18 +54,32 @@ public class StaffManager {
 
         previousInventories.put(
                 uuid,
-                player.getInventory().getContents().clone()
+                player.getInventory()
+                        .getContents()
+                        .clone()
         );
 
         previousArmor.put(
                 uuid,
-                player.getInventory().getArmorContents().clone()
+                player.getInventory()
+                        .getArmorContents()
+                        .clone()
         );
+
+        ItemStack offhand =
+                player.getInventory()
+                        .getItemInOffHand();
 
         previousOffhand.put(
                 uuid,
-                player.getInventory().getItemInOffHand().clone()
+                offhand == null
+                        ? null
+                        : offhand.clone()
         );
+
+        /*
+         * Limpiamos inventario temporalmente.
+         */
 
         player.getInventory().clear();
 
@@ -73,12 +87,29 @@ public class StaffManager {
                 new ItemStack[4]
         );
 
-        player.getInventory().setItemInOffHand(null);
+        player.getInventory().setItemInOffHand(
+                null
+        );
 
-        player.setGameMode(GameMode.CREATIVE);
+        /*
+         * Staff Mode.
+         */
+
+        player.setGameMode(
+                GameMode.CREATIVE
+        );
 
         player.setAllowFlight(true);
         player.setFlying(true);
+
+        /*
+         * Entregar herramientas.
+         */
+
+        StaffToolsManager tools =
+                new StaffToolsManager(plugin);
+
+        tools.giveTools(player);
 
         return true;
     }
@@ -89,7 +120,12 @@ public class StaffManager {
             return false;
         }
 
-        UUID uuid = player.getUniqueId();
+        UUID uuid =
+                player.getUniqueId();
+
+        /*
+         * Limpiar herramientas.
+         */
 
         player.getInventory().clear();
 
@@ -97,32 +133,61 @@ public class StaffManager {
                 new ItemStack[4]
         );
 
-        player.getInventory().setItemInOffHand(null);
+        player.getInventory().setItemInOffHand(
+                null
+        );
+
+        /*
+         * Restaurar inventario.
+         */
 
         ItemStack[] inventory =
                 previousInventories.remove(uuid);
 
         if (inventory != null) {
-            player.getInventory().setContents(inventory);
+
+            player.getInventory().setContents(
+                    inventory
+            );
         }
+
+        /*
+         * Restaurar armadura.
+         */
 
         ItemStack[] armor =
                 previousArmor.remove(uuid);
 
         if (armor != null) {
-            player.getInventory().setArmorContents(armor);
+
+            player.getInventory().setArmorContents(
+                    armor
+            );
         }
+
+        /*
+         * Restaurar offhand.
+         */
 
         ItemStack offhand =
                 previousOffhand.remove(uuid);
 
-        player.getInventory().setItemInOffHand(offhand);
+        player.getInventory().setItemInOffHand(
+                offhand
+        );
+
+        /*
+         * Restaurar GameMode.
+         */
 
         GameMode previousGameMode =
                 previousGameModes.remove(uuid);
 
         if (previousGameMode != null) {
-            player.setGameMode(previousGameMode);
+
+            player.setGameMode(
+                    previousGameMode
+            );
         }
 
         player.setFlying(false);
@@ -137,7 +202,8 @@ public class StaffManager {
             return;
         }
 
-        UUID uuid = player.getUniqueId();
+        UUID uuid =
+                player.getUniqueId();
 
         previousGameModes.remove(uuid);
         previousInventories.remove(uuid);
@@ -148,9 +214,11 @@ public class StaffManager {
     public void disableAll() {
 
         for (Player player :
-                plugin.getServer().getOnlinePlayers()) {
+                plugin.getServer()
+                        .getOnlinePlayers()) {
 
             if (isStaff(player)) {
+
                 disable(player);
             }
         }
@@ -162,6 +230,7 @@ public class StaffManager {
     }
 
     public int getStaffCount() {
+
         return previousGameModes.size();
     }
 }
