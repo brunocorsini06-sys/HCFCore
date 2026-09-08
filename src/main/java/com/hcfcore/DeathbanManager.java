@@ -87,7 +87,28 @@ public class DeathbanManager {
             return;
         }
 
-        addLife(player.getUniqueId());
+        addLife(
+                player.getUniqueId(),
+                1
+        );
+    }
+
+    /**
+     * Agrega varias vidas.
+     */
+    public void addLife(
+            Player player,
+            int amount
+    ) {
+
+        if (player == null) {
+            return;
+        }
+
+        addLife(
+                player.getUniqueId(),
+                amount
+        );
     }
 
     /**
@@ -95,7 +116,18 @@ public class DeathbanManager {
      */
     public void addLife(UUID uuid) {
 
-        if (uuid == null) {
+        addLife(uuid, 1);
+    }
+
+    /**
+     * Agrega varias vidas mediante UUID.
+     */
+    public void addLife(
+            UUID uuid,
+            int amount
+    ) {
+
+        if (uuid == null || amount <= 0) {
             return;
         }
 
@@ -107,7 +139,7 @@ public class DeathbanManager {
 
         lives.put(
                 uuid,
-                current + 1
+                current + amount
         );
 
         saveLives(uuid);
