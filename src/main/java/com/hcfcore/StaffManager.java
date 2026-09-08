@@ -45,12 +45,21 @@ public class StaffManager {
             return false;
         }
 
-        UUID uuid = player.getUniqueId();
+        UUID uuid =
+                player.getUniqueId();
+
+        /*
+         * Guardar GameMode.
+         */
 
         previousGameModes.put(
                 uuid,
                 player.getGameMode()
         );
+
+        /*
+         * Guardar inventario.
+         */
 
         previousInventories.put(
                 uuid,
@@ -59,12 +68,20 @@ public class StaffManager {
                         .clone()
         );
 
+        /*
+         * Guardar armadura.
+         */
+
         previousArmor.put(
                 uuid,
                 player.getInventory()
                         .getArmorContents()
                         .clone()
         );
+
+        /*
+         * Guardar offhand.
+         */
 
         ItemStack offhand =
                 player.getInventory()
@@ -78,7 +95,7 @@ public class StaffManager {
         );
 
         /*
-         * Limpiamos inventario temporalmente.
+         * Limpiar inventario temporal.
          */
 
         player.getInventory().clear();
@@ -92,7 +109,7 @@ public class StaffManager {
         );
 
         /*
-         * Staff Mode.
+         * Activar Staff Mode.
          */
 
         player.setGameMode(
@@ -103,13 +120,16 @@ public class StaffManager {
         player.setFlying(true);
 
         /*
-         * Entregar herramientas.
+         * Dar Staff Tools.
          */
 
         StaffToolsManager tools =
-                new StaffToolsManager(plugin);
+                plugin.getStaffToolsManager();
 
-        tools.giveTools(player);
+        if (tools != null) {
+
+            tools.giveTools(player);
+        }
 
         return true;
     }
@@ -124,7 +144,7 @@ public class StaffManager {
                 player.getUniqueId();
 
         /*
-         * Limpiar herramientas.
+         * Limpiar Staff Tools.
          */
 
         player.getInventory().clear();
