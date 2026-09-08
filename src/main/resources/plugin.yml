@@ -55,9 +55,15 @@ commands:
     description: View balance
     aliases: [bal, money]
 
+  staff:
+   description: Activar o Desactivar Staff Mode
+
 permissions:
   hcf.admin:
     default: op
 
   hcf.bypass:
+    default: op
+
+  hcf.staff:
     default: op
