@@ -41,6 +41,7 @@ public class HCFCore extends JavaPlugin {
     private VillagerManager villagerManager;
     private TabListManager tabListManager;
     private GUIManager guiManager;
+    private StaffManager staffManager;
 
     private BukkitTask scoreboardTask;
     private BukkitTask dtrTask;
@@ -134,6 +135,7 @@ public class HCFCore extends JavaPlugin {
         scoreboardManager = new ScoreboardManager(this);
         villagerManager = new VillagerManager(this);
         tabListManager = new TabListManager(this);
+        staffManager = new StaffManager(this);
 
         /*
          * ==============================
@@ -186,6 +188,7 @@ public class HCFCore extends JavaPlugin {
         registerCommand("lives", commands);
         registerCommand("deathban", commands);
         registerCommand("balance", commands);
+        registerCommand("staff", commands);
 
         /*
          * ==============================
@@ -374,13 +377,14 @@ public class HCFCore extends JavaPlugin {
         );
 
         getLogger().info(
+                "        Staff Manager ACTIVADO"
+        );
+
+        getLogger().info(
                 "================================="
         );
     }
 
-    /**
-     * Registra un comando definido en plugin.yml.
-     */
     private void registerCommand(
             String name,
             Commands commands
@@ -400,9 +404,6 @@ public class HCFCore extends JavaPlugin {
                 .setExecutor(commands);
     }
 
-    /**
-     * Configura el WorldBorder.
-     */
     private void setupWorldBorder() {
 
         String worldName =
@@ -475,12 +476,6 @@ public class HCFCore extends JavaPlugin {
                 "Apagando HCFCore..."
         );
 
-        /*
-         * ==============================
-         * TAREAS
-         * ==============================
-         */
-
         if (scoreboardTask != null) {
             scoreboardTask.cancel();
             scoreboardTask = null;
@@ -491,33 +486,19 @@ public class HCFCore extends JavaPlugin {
             dtrTask = null;
         }
 
-        /*
-         * ==============================
-         * AIRDROPS
-         * ==============================
-         */
+        if (staffManager != null) {
+            staffManager.disableAll();
+        }
 
         if (airdropManager != null) {
             airdropManager.shutdown();
         }
-
-        /*
-         * ==============================
-         * KOTH
-         * ==============================
-         */
 
         if (kothManager != null
                 && kothManager.isActive()) {
 
             kothManager.stopKoth();
         }
-
-        /*
-         * ==============================
-         * DATOS
-         * ==============================
-         */
 
         if (factionManager != null) {
             factionManager.saveAll();
@@ -531,21 +512,9 @@ public class HCFCore extends JavaPlugin {
             claimManager.saveAll();
         }
 
-        /*
-         * ==============================
-         * DATABASE
-         * ==============================
-         */
-
         if (databaseManager != null) {
             databaseManager.disconnect();
         }
-
-        /*
-         * ==============================
-         * INSTANCE
-         * ==============================
-         */
 
         instance = null;
 
@@ -558,12 +527,6 @@ public class HCFCore extends JavaPlugin {
         return instance;
     }
 
-    /*
-     * ==============================
-     * EXTERNAL HOOK GETTERS
-     * ==============================
-     */
-
     public LuckPermsHook getLuckPermsHook() {
         return luckPermsHook;
     }
@@ -575,12 +538,6 @@ public class HCFCore extends JavaPlugin {
     public ProtocolLibHook getProtocolLibHook() {
         return protocolLibHook;
     }
-
-    /*
-     * ==============================
-     * MANAGER GETTERS
-     * ==============================
-     */
 
     public DatabaseManager getDatabaseManager() {
         return databaseManager;
@@ -636,5 +593,9 @@ public class HCFCore extends JavaPlugin {
 
     public GUIManager getGuiManager() {
         return guiManager;
+    }
+
+    public StaffManager getStaffManager() {
+        return staffManager;
     }
 }
