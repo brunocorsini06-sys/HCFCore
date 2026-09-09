@@ -2,6 +2,8 @@ package com.hcfcore;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
@@ -9,11 +11,11 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockBurnEvent;
 import org.bukkit.event.block.BlockFromToEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
-import org.bukkit.event.block.BlockBurnEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
@@ -25,6 +27,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.util.Iterator;
+import java.util.Locale;
 
 public class HCFListener implements Listener {
 
@@ -35,7 +38,7 @@ public class HCFListener implements Listener {
     }
 
     // =========================================================
-    // PLAYER JOIN
+    // JOIN
     // =========================================================
 
     @EventHandler
@@ -43,32 +46,20 @@ public class HCFListener implements Listener {
 
         Player player = event.getPlayer();
 
-        /*
-         * VANISH
-         */
-
         if (plugin.getVanishManager() != null) {
-
-            plugin.getVanishManager()
-                    .handleJoin(player);
+            plugin.getVanishManager().handleJoin(player);
         }
 
-        plugin.getDeathbanManager()
-                .setupPlayer(player);
+        plugin.getDeathbanManager().setupPlayer(player);
 
-        plugin.getScoreboardManager()
-                .update(player);
+        plugin.getScoreboardManager().update(player);
 
-        if (plugin.getKothManager()
-                .isActive()) {
+        if (plugin.getKothManager().isActive()
+                && plugin.getKothManager().getBossBar() != null) {
 
-            if (plugin.getKothManager()
-                    .getBossBar() != null) {
-
-                plugin.getKothManager()
-                        .getBossBar()
-                        .addPlayer(player);
-            }
+            plugin.getKothManager()
+                    .getBossBar()
+                    .addPlayer(player);
         }
 
         long deathban =
@@ -113,7 +104,7 @@ public class HCFListener implements Listener {
     }
 
     // =========================================================
-    // PLAYER QUIT
+    // QUIT
     // =========================================================
 
     @EventHandler
@@ -121,45 +112,21 @@ public class HCFListener implements Listener {
 
         Player player = event.getPlayer();
 
-        /*
-         * VANISH
-         */
-
         if (plugin.getVanishManager() != null) {
-
-            plugin.getVanishManager()
-                    .handleQuit(player);
+            plugin.getVanishManager().handleQuit(player);
         }
-
-        /*
-         * STAFF MODE
-         */
 
         if (plugin.getStaffManager() != null
                 && plugin.getStaffManager().isStaff(player)) {
 
-            plugin.getStaffManager()
-                    .handleQuit(player);
+            plugin.getStaffManager().handleQuit(player);
         }
 
-        /*
-         * COMBAT
-         */
-
-        if (plugin.getCombatManager()
-                .isInCombat(player)) {
-
-            plugin.getCombatManager()
-                    .handleQuit(player);
+        if (plugin.getCombatManager().isInCombat(player)) {
+            plugin.getCombatManager().handleQuit(player);
         }
 
-        /*
-         * KOTH BOSSBAR
-         */
-
-        if (plugin.getKothManager()
-                .getBossBar() != null) {
-
+        if (plugin.getKothManager().getBossBar() != null) {
             plugin.getKothManager()
                     .getBossBar()
                     .removePlayer(player);
@@ -167,16 +134,97 @@ public class HCFListener implements Listener {
     }
 
     // =========================================================
-    // STAFF MODE - DAMAGE
+    // DAMAGE / PVP
     // =========================================================
 
     @EventHandler(
             priority = EventPriority.HIGHEST,
             ignoreCancelled = true
     )
-    public void onStaffDamage(
-            EntityDamageByEntityEvent event
-    ) {
+    public void onDamage(EntityDamageByEntityEvent event) {
+
+        if (!(event.getEntity() instanceof Player)) {
+            return;
+        }
+
+        Player victim =
+                (Player) event.getEntity();
+
+        Player attacker =
+                getAttackingPlayer(event.getDamager());
+
+        if (attacker == null) {
+            return;
+        }
+
+        // -----------------------------------------------------
+        // STAFF
+        // -----------------------------------------------------
+
+        if (plugin.getStaffManager() != null) {
+
+            if (plugin.getStaffManager().isStaff(victim)
+                    || plugin.getStaffManager().isStaff(attacker)) {
+
+                event.setCancelled(true);
+                return;
+            }
+        }
+
+        // -----------------------------------------------------
+        // FRIENDLY FIRE
+        // -----------------------------------------------------
+
+        Faction attackerFaction =
+                plugin.getFactionManager()
+                        .getFaction(attacker);
+
+        Faction victimFaction =
+                plugin.getFactionManager()
+                        .getFaction(victim);
+
+        if (attackerFaction != null
+                && victimFaction != null
+                && attackerFaction.getName()
+                .equalsIgnoreCase(victimFaction.getName())) {
+
+            boolean friendlyFire =
+                    plugin.getConfig()
+                            .getBoolean(
+                                    "factions.friendly-fire",
+                                    false
+                            );
+
+            if (!friendlyFire) {
+
+                event.setCancelled(true);
+
+                attacker.sendMessage(
+                        ChatColor.RED +
+                                "No puedes atacar a un miembro de tu faction."
+                );
+
+                return;
+            }
+        }
+
+        // -----------------------------------------------------
+        // COMBAT TAG
+        // -----------------------------------------------------
+
+        plugin.getCombatManager().tag(attacker);
+        plugin.getCombatManager().tag(victim);
+    }
+
+    // =========================================================
+    // STAFF DAMAGE
+    // =========================================================
+
+    @EventHandler(
+            priority = EventPriority.HIGHEST,
+            ignoreCancelled = true
+    )
+    public void onStaffDamage(EntityDamageByEntityEvent event) {
 
         if (!(event.getEntity() instanceof Player)) {
             return;
@@ -192,58 +240,31 @@ public class HCFListener implements Listener {
             return;
         }
 
-        Entity damager =
-                event.getDamager();
+        Player attacker =
+                getAttackingPlayer(event.getDamager());
 
-        if (damager instanceof Player) {
+        if (attacker != null
+                && plugin.getStaffManager() != null
+                && plugin.getStaffManager().isStaff(attacker)) {
 
-            Player attacker =
-                    (Player) damager;
-
-            if (plugin.getStaffManager() != null
-                    && plugin.getStaffManager().isStaff(attacker)) {
-
-                event.setCancelled(true);
-            }
-
-            return;
-        }
-
-        if (damager instanceof Projectile) {
-
-            Projectile projectile =
-                    (Projectile) damager;
-
-            if (projectile.getShooter()
-                    instanceof Player) {
-
-                Player shooter =
-                        (Player) projectile.getShooter();
-
-                if (plugin.getStaffManager() != null
-                        && plugin.getStaffManager().isStaff(shooter)) {
-
-                    event.setCancelled(true);
-                }
-            }
+            event.setCancelled(true);
         }
     }
 
     // =========================================================
-    // STAFF MODE - BLOCK BREAK
+    // BLOCK BREAK
     // =========================================================
 
     @EventHandler(
             priority = EventPriority.HIGHEST,
             ignoreCancelled = true
     )
-    public void onStaffBlockBreak(
-            BlockBreakEvent event
-    ) {
+    public void onBlockBreak(BlockBreakEvent event) {
 
         Player player =
                 event.getPlayer();
 
+        // Staff Mode
         if (plugin.getStaffManager() != null
                 && plugin.getStaffManager().isStaff(player)) {
 
@@ -251,10 +272,10 @@ public class HCFListener implements Listener {
             return;
         }
 
-        if (!canBuild(
-                player,
-                event.getBlock().getLocation()
-        )) {
+        Location location =
+                event.getBlock().getLocation();
+
+        if (!canBuild(player, location)) {
 
             event.setCancelled(true);
             sendClaimDenied(player);
@@ -262,20 +283,19 @@ public class HCFListener implements Listener {
     }
 
     // =========================================================
-    // STAFF MODE - BLOCK PLACE
+    // BLOCK PLACE
     // =========================================================
 
     @EventHandler(
             priority = EventPriority.HIGHEST,
             ignoreCancelled = true
     )
-    public void onStaffBlockPlace(
-            BlockPlaceEvent event
-    ) {
+    public void onBlockPlace(BlockPlaceEvent event) {
 
         Player player =
                 event.getPlayer();
 
+        // Staff Mode
         if (plugin.getStaffManager() != null
                 && plugin.getStaffManager().isStaff(player)) {
 
@@ -283,10 +303,10 @@ public class HCFListener implements Listener {
             return;
         }
 
-        if (!canBuild(
-                player,
-                event.getBlock().getLocation()
-        )) {
+        Location location =
+                event.getBlock().getLocation();
+
+        if (!canBuild(player, location)) {
 
             event.setCancelled(true);
             sendClaimDenied(player);
@@ -301,9 +321,7 @@ public class HCFListener implements Listener {
             priority = EventPriority.HIGH,
             ignoreCancelled = true
     )
-    public void onInventoryOpen(
-            InventoryOpenEvent event
-    ) {
+    public void onInventoryOpen(InventoryOpenEvent event) {
 
         if (!(event.getPlayer() instanceof Player)) {
             return;
@@ -341,26 +359,17 @@ public class HCFListener implements Listener {
             priority = EventPriority.HIGHEST,
             ignoreCancelled = true
     )
-    public void onInteract(
-            PlayerInteractEvent event
-    ) {
+    public void onInteract(PlayerInteractEvent event) {
 
         Player player =
                 event.getPlayer();
 
-        /*
-         * =====================================================
-         * STAFF MODE
-         * =====================================================
-         */
+        // -----------------------------------------------------
+        // STAFF MODE
+        // -----------------------------------------------------
 
         if (plugin.getStaffManager() != null
                 && plugin.getStaffManager().isStaff(player)) {
-
-            /*
-             * Solo procesamos herramientas
-             * con clic derecho.
-             */
 
             if (event.getAction().isRightClick()) {
 
@@ -375,18 +384,14 @@ public class HCFListener implements Listener {
                     String name = "";
 
                     if (item.getItemMeta() != null
-                            && item.getItemMeta()
-                            .hasDisplayName()) {
+                            && item.getItemMeta().hasDisplayName()) {
 
                         name =
                                 item.getItemMeta()
                                         .getDisplayName();
                     }
 
-                    /*
-                     * VANISH
-                     */
-
+                    // VANISH
                     if (name.equals(
                             ChatColor.GREEN + "Vanish"
                     )) {
@@ -397,30 +402,20 @@ public class HCFListener implements Listener {
                                     plugin.getVanishManager()
                                             .toggle(player);
 
-                            if (vanished) {
-
-                                player.sendMessage(
-                                        ChatColor.GREEN +
-                                                "Vanish activado."
-                                );
-
-                            } else {
-
-                                player.sendMessage(
-                                        ChatColor.RED +
-                                                "Vanish desactivado."
-                                );
-                            }
+                            player.sendMessage(
+                                    vanished
+                                            ? ChatColor.GREEN
+                                            + "Vanish activado."
+                                            : ChatColor.RED
+                                            + "Vanish desactivado."
+                            );
                         }
 
                         event.setCancelled(true);
                         return;
                     }
 
-                    /*
-                     * DESACTIVAR STAFF MODE
-                     */
-
+                    // DESACTIVAR STAFF
                     if (name.equals(
                             ChatColor.RED +
                                     "Desactivar Staff Mode"
@@ -449,155 +444,51 @@ public class HCFListener implements Listener {
                         return;
                     }
 
-                    /*
-                     * OTROS STAFF TOOLS
-                     *
-                     * Los implementaremos
-                     * progresivamente.
-                     */
-
                     event.setCancelled(true);
                     return;
                 }
             }
 
-            /*
-             * Staff Mode no puede interactuar
-             * normalmente con el mundo.
-             */
-
             event.setCancelled(true);
             return;
         }
 
-        /*
-         * =====================================================
-         * NORMAL PLAYER INTERACTION
-         * =====================================================
-         */
+        // -----------------------------------------------------
+        // NORMAL PLAYER
+        // -----------------------------------------------------
 
-        if (event.getClickedBlock() == null) {
+        Block clicked =
+                event.getClickedBlock();
+
+        if (clicked == null) {
             return;
         }
 
         Location location =
-                event.getClickedBlock()
-                        .getLocation();
+                clicked.getLocation();
 
         if (canBuild(player, location)) {
             return;
         }
 
-        switch (event.getClickedBlock().getType()) {
+        if (isProtectedInteractBlock(
+                clicked.getType()
+        )) {
 
-            case CHEST:
-            case TRAPPED_CHEST:
-            case BARREL:
-            case FURNACE:
-            case BLAST_FURNACE:
-            case SMOKER:
-            case HOPPER:
-            case DROPPER:
-            case DISPENSER:
-            case BREWING_STAND:
-            case ENCHANTING_TABLE:
-            case ANVIL:
-            case CHIPPED_ANVIL:
-            case DAMAGED_ANVIL:
-            case CRAFTING_TABLE:
-            case STONECUTTER:
-            case LOOM:
-            case CARTOGRAPHY_TABLE:
-            case FLETCHING_TABLE:
-            case GRINDSTONE:
-            case SMITHING_TABLE:
-            case BEACON:
-            case JUKEBOX:
-            case SHULKER_BOX:
-            case WHITE_SHULKER_BOX:
-            case ORANGE_SHULKER_BOX:
-            case MAGENTA_SHULKER_BOX:
-            case LIGHT_BLUE_SHULKER_BOX:
-            case YELLOW_SHULKER_BOX:
-            case LIME_SHULKER_BOX:
-            case PINK_SHULKER_BOX:
-            case GRAY_SHULKER_BOX:
-            case LIGHT_GRAY_SHULKER_BOX:
-            case CYAN_SHULKER_BOX:
-            case PURPLE_SHULKER_BOX:
-            case BLUE_SHULKER_BOX:
-            case BROWN_SHULKER_BOX:
-            case GREEN_SHULKER_BOX:
-            case RED_SHULKER_BOX:
-            case BLACK_SHULKER_BOX:
-            case OAK_DOOR:
-            case SPRUCE_DOOR:
-            case BIRCH_DOOR:
-            case JUNGLE_DOOR:
-            case ACACIA_DOOR:
-            case DARK_OAK_DOOR:
-            case MANGROVE_DOOR:
-            case CHERRY_DOOR:
-            case BAMBOO_DOOR:
-            case CRIMSON_DOOR:
-            case WARPED_DOOR:
-            case OAK_TRAPDOOR:
-            case SPRUCE_TRAPDOOR:
-            case BIRCH_TRAPDOOR:
-            case JUNGLE_TRAPDOOR:
-            case ACACIA_TRAPDOOR:
-            case DARK_OAK_TRAPDOOR:
-            case MANGROVE_TRAPDOOR:
-            case CHERRY_TRAPDOOR:
-            case BAMBOO_TRAPDOOR:
-            case CRIMSON_TRAPDOOR:
-            case WARPED_TRAPDOOR:
-            case OAK_FENCE_GATE:
-            case SPRUCE_FENCE_GATE:
-            case BIRCH_FENCE_GATE:
-            case JUNGLE_FENCE_GATE:
-            case ACACIA_FENCE_GATE:
-            case DARK_OAK_FENCE_GATE:
-            case MANGROVE_FENCE_GATE:
-            case CHERRY_FENCE_GATE:
-            case BAMBOO_FENCE_GATE:
-            case CRIMSON_FENCE_GATE:
-            case WARPED_FENCE_GATE:
-            case LEVER:
-            case STONE_BUTTON:
-            case POLISHED_BLACKSTONE_BUTTON:
-            case OAK_BUTTON:
-            case SPRUCE_BUTTON:
-            case BIRCH_BUTTON:
-            case JUNGLE_BUTTON:
-            case ACACIA_BUTTON:
-            case DARK_OAK_BUTTON:
-            case MANGROVE_BUTTON:
-            case CHERRY_BUTTON:
-            case BAMBOO_BUTTON:
-            case CRIMSON_BUTTON:
-            case WARPED_BUTTON:
-
-                event.setCancelled(true);
-                sendClaimDenied(player);
-                break;
-
-            default:
-                break;
+            event.setCancelled(true);
+            sendClaimDenied(player);
         }
     }
 
     // =========================================================
-    // STAFF MODE - DROP ITEMS
+    // DROP
     // =========================================================
 
     @EventHandler(
             priority = EventPriority.HIGHEST,
             ignoreCancelled = true
     )
-    public void onStaffDrop(
-            PlayerDropItemEvent event
-    ) {
+    public void onDrop(PlayerDropItemEvent event) {
 
         Player player =
                 event.getPlayer();
@@ -610,16 +501,14 @@ public class HCFListener implements Listener {
     }
 
     // =========================================================
-    // STAFF MODE - PICKUP ITEMS
+    // PICKUP
     // =========================================================
 
     @EventHandler(
             priority = EventPriority.HIGHEST,
             ignoreCancelled = true
     )
-    public void onStaffPickup(
-            EntityPickupItemEvent event
-    ) {
+    public void onPickup(EntityPickupItemEvent event) {
 
         if (!(event.getEntity() instanceof Player)) {
             return;
@@ -636,29 +525,25 @@ public class HCFListener implements Listener {
     }
 
     // =========================================================
-    // EXPLOSIONES
+    // EXPLOSIONS
     // =========================================================
 
     @EventHandler(
             priority = EventPriority.HIGH,
             ignoreCancelled = true
     )
-    public void onExplosion(
-            EntityExplodeEvent event
-    ) {
+    public void onExplosion(EntityExplodeEvent event) {
 
-        Iterator<org.bukkit.block.Block> iterator =
+        Iterator<Block> iterator =
                 event.blockList().iterator();
 
         while (iterator.hasNext()) {
 
-            org.bukkit.block.Block block =
+            Block block =
                     iterator.next();
 
             if (plugin.getClaimManager()
-                    .isClaimed(
-                            block.getLocation()
-                    )) {
+                    .isClaimed(block.getLocation())) {
 
                 iterator.remove();
             }
@@ -666,7 +551,7 @@ public class HCFListener implements Listener {
     }
 
     // =========================================================
-    // PISTONES - EXTENDER
+    // PISTON EXTEND
     // =========================================================
 
     @EventHandler(
@@ -677,11 +562,10 @@ public class HCFListener implements Listener {
             BlockPistonExtendEvent event
     ) {
 
-        for (org.bukkit.block.Block block :
-                event.getBlocks()) {
+        for (Block block : event.getBlocks()) {
 
             Location destination =
-                    block.getLocation().add(
+                    block.getLocation().clone().add(
                             event.getDirection().getModX(),
                             event.getDirection().getModY(),
                             event.getDirection().getModZ()
@@ -697,7 +581,7 @@ public class HCFListener implements Listener {
     }
 
     // =========================================================
-    // PISTONES - RETRAER
+    // PISTON RETRACT
     // =========================================================
 
     @EventHandler(
@@ -708,8 +592,7 @@ public class HCFListener implements Listener {
             BlockPistonRetractEvent event
     ) {
 
-        for (org.bukkit.block.Block block :
-                event.getBlocks()) {
+        for (Block block : event.getBlocks()) {
 
             if (plugin.getClaimManager()
                     .isClaimed(
@@ -723,7 +606,7 @@ public class HCFListener implements Listener {
     }
 
     // =========================================================
-    // LÍQUIDOS
+    // LIQUID FLOW
     // =========================================================
 
     @EventHandler(
@@ -745,7 +628,7 @@ public class HCFListener implements Listener {
     }
 
     // =========================================================
-    // FUEGO
+    // FIRE
     // =========================================================
 
     @EventHandler(
@@ -767,120 +650,11 @@ public class HCFListener implements Listener {
     }
 
     // =========================================================
-    // PVP / COMBAT TAG
+    // DEATH
     // =========================================================
 
     @EventHandler
-    public void onDamage(
-            EntityDamageByEntityEvent event
-    ) {
-
-        if (!(event.getEntity() instanceof Player)) {
-            return;
-        }
-
-        Player victim =
-                (Player) event.getEntity();
-
-        Player attacker = null;
-
-        Entity damager =
-                event.getDamager();
-
-        if (damager instanceof Player) {
-
-            attacker =
-                    (Player) damager;
-
-        } else if (damager instanceof Projectile) {
-
-            Projectile projectile =
-                    (Projectile) damager;
-
-            if (projectile.getShooter()
-                    instanceof Player) {
-
-                attacker =
-                        (Player) projectile.getShooter();
-            }
-        }
-
-        if (attacker == null) {
-            return;
-        }
-
-        /*
-         * Staff no puede participar
-         * en PvP.
-         */
-
-        if (plugin.getStaffManager() != null) {
-
-            if (plugin.getStaffManager()
-                    .isStaff(attacker)
-                    || plugin.getStaffManager()
-                    .isStaff(victim)) {
-
-                event.setCancelled(true);
-                return;
-            }
-        }
-
-        Faction attackerFaction =
-                plugin.getFactionManager()
-                        .getFaction(attacker);
-
-        Faction victimFaction =
-                plugin.getFactionManager()
-                        .getFaction(victim);
-
-        if (attackerFaction != null
-                && victimFaction != null
-                && attackerFaction
-                .getName()
-                .equalsIgnoreCase(
-                        victimFaction.getName()
-                )) {
-
-            boolean friendlyFire =
-                    plugin.getConfig()
-                            .getBoolean(
-                                    "factions.friendly-fire",
-                                    false
-                            );
-
-            if (!friendlyFire) {
-
-                event.setCancelled(true);
-
-                attacker.sendMessage(
-                        ChatColor.RED +
-                                "No puedes atacar a un miembro de tu faction."
-                );
-
-                return;
-            }
-        }
-
-        if (event.isCancelled()) {
-            return;
-        }
-
-        plugin.getCombatManager()
-                .tag(attacker);
-
-        plugin.getCombatManager()
-                .tag(victim);
-    }
-
-    // =========================================================
-    // PLAYER DEATH
-    // =========================================================
-
-    @EventHandler
-    public void onDeath(
-            PlayerDeathEvent event
-    ) {
+    public void onDeath(PlayerDeathEvent event) {
 
         Player player =
                 event.getEntity();
@@ -895,9 +669,7 @@ public class HCFListener implements Listener {
         double oldDtr = 0.0;
 
         if (faction != null) {
-
-            oldDtr =
-                    faction.getDtr();
+            oldDtr = faction.getDtr();
         }
 
         boolean dtrLost = false;
@@ -980,12 +752,120 @@ public class HCFListener implements Listener {
     }
 
     // =========================================================
-    // RAIDABLE ANNOUNCEMENT
+    // HELPERS
     // =========================================================
 
-    private void broadcastRaidable(
-            Faction faction
+    private Player getAttackingPlayer(Entity damager) {
+
+        if (damager instanceof Player) {
+            return (Player) damager;
+        }
+
+        if (damager instanceof Projectile) {
+
+            Projectile projectile =
+                    (Projectile) damager;
+
+            if (projectile.getShooter()
+                    instanceof Player) {
+
+                return (Player) projectile.getShooter();
+            }
+        }
+
+        return null;
+    }
+
+    private boolean canBuild(
+            Player player,
+            Location location
     ) {
+
+        if (player == null || location == null) {
+            return false;
+        }
+
+        if (player.hasPermission("hcf.bypass")) {
+            return true;
+        }
+
+        return plugin.getClaimManager()
+                .canBuild(
+                        player,
+                        location
+                );
+    }
+
+    private boolean isProtectedInteractBlock(
+            Material material
+    ) {
+
+        String name =
+                material.name();
+
+        // Contenedores y máquinas
+        if (name.contains("CHEST")
+                || name.contains("BARREL")
+                || name.contains("FURNACE")
+                || name.contains("HOPPER")
+                || name.contains("DROPPER")
+                || name.contains("DISPENSER")
+                || name.contains("BREWING")
+                || name.contains("SHULKER")) {
+
+            return true;
+        }
+
+        // Mesas / estaciones
+        switch (material) {
+
+            case CRAFTING_TABLE:
+            case ENCHANTING_TABLE:
+            case ANVIL:
+            case CHIPPED_ANVIL:
+            case DAMAGED_ANVIL:
+            case SMITHING_TABLE:
+            case STONECUTTER:
+            case LOOM:
+            case CARTOGRAPHY_TABLE:
+            case FLETCHING_TABLE:
+            case GRINDSTONE:
+            case BEACON:
+            case JUKEBOX:
+            case LEVER:
+            case STONE_BUTTON:
+            case POLISHED_BLACKSTONE_BUTTON:
+                return true;
+
+            default:
+                break;
+        }
+
+        // Puertas, trampillas y vallas
+        if (name.endsWith("_DOOR")
+                || name.endsWith("_TRAPDOOR")
+                || name.endsWith("_FENCE_GATE")) {
+
+            return true;
+        }
+
+        // Botones de madera
+        if (name.endsWith("_BUTTON")) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private void sendClaimDenied(Player player) {
+
+        player.sendMessage(
+                ChatColor.RED +
+                        "No puedes hacer eso dentro del claim de otra faction."
+        );
+    }
+
+    private void broadcastRaidable(Faction faction) {
 
         if (faction == null) {
             return;
@@ -1009,66 +889,16 @@ public class HCFListener implements Listener {
                 .broadcastMessage(message);
     }
 
-    // =========================================================
-    // CLAIM CHECK
-    // =========================================================
-
-    private boolean canBuild(
-            Player player,
-            Location location
-    ) {
-
-        if (player == null || location == null) {
-            return false;
-        }
-
-        if (player.hasPermission("hcf.bypass")) {
-            return true;
-        }
-
-        return plugin.getClaimManager()
-                .canBuild(
-                        player,
-                        location
-                );
-    }
-
-    // =========================================================
-    // CLAIM DENIED
-    // =========================================================
-
-    private void sendClaimDenied(
-            Player player
-    ) {
-
-        player.sendMessage(
-                ChatColor.RED +
-                        "No puedes hacer eso dentro del claim de otra faction."
-        );
-    }
-
-    // =========================================================
-    // DTR FORMAT
-    // =========================================================
-
-    private String formatDtr(
-            double value
-    ) {
+    private String formatDtr(double value) {
 
         return String.format(
-                java.util.Locale.US,
+                Locale.US,
                 "%.1f",
                 Math.max(0.0, value)
         );
     }
 
-    // =========================================================
-    // TIME FORMAT
-    // =========================================================
-
-    private String formatTime(
-            long seconds
-    ) {
+    private String formatTime(long seconds) {
 
         if (seconds <= 0) {
             return "0s";
@@ -1090,21 +920,15 @@ public class HCFListener implements Listener {
         seconds %= 60;
 
         if (days > 0) {
-
-            return days + "d "
-                    + hours + "h";
+            return days + "d " + hours + "h";
         }
 
         if (hours > 0) {
-
-            return hours + "h "
-                    + minutes + "m";
+            return hours + "h " + minutes + "m";
         }
 
         if (minutes > 0) {
-
-            return minutes + "m "
-                    + seconds + "s";
+            return minutes + "m " + seconds + "s";
         }
 
         return seconds + "s";
