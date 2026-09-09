@@ -4,66 +4,56 @@ main: com.hcfcore.HCFCore
 api-version: '1.20'
 author: HCFCore
 description: Survival HCF Core for Paper 1.20.4
-
 depend:
   - LuckPerms
   - Vault
   - ProtocolLib
-
 libraries:
   - org.xerial:sqlite-jdbc:3.46.1.0
-
 commands:
   f:
     description: Faction commands
-    aliases: [faction, fac]
-
+    aliases:
+      - faction
+      - fac
   hcf:
     description: HCF administration
-
+    permission: hcf.admin
   claim:
     description: Claim management
-
   combat:
     description: Combat status
-
   pay:
     description: Send money
-
   kit:
     description: Claim a kit
-
   class:
     description: Choose HCF class
-
   spawn:
     description: Teleport to spawn
-
   koth:
     description: KOTH commands
-
   airdrop:
     description: Airdrop commands
-
   lives:
     description: Lives management
-
   deathban:
     description: Deathban management
-
   balance:
     description: View balance
-    aliases: [bal, money]
-
+    aliases:
+      - bal
+      - money
   staff:
-   description: Activar o Desactivar Staff Mode
-
+    description: Activar o Desactivar Staff Mode
+    permission: hcf.staff
 permissions:
   hcf.admin:
+    description: Acceso completo a la administración de HCFCore
     default: op
-
   hcf.bypass:
+    description: Ignorar protecciones de HCFCore
     default: op
-
   hcf.staff:
+    description: Acceso al Staff Mode
     default: op
