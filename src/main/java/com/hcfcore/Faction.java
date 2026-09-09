@@ -223,19 +223,20 @@ public class Faction {
         }
         return captains.contains(uuid);
     }
-    public void promoteToCaptain(UUID uuid) {
-        if (uuid == null) {
-            return;
-        }
-        if (!members.contains(uuid)) {
-            return;
-        }
-        if (isLeader(uuid)
-                || isCoLeader(uuid)) {
-            return;
-        }
-        captains.add(uuid);
+public boolean promoteToCaptain(UUID uuid) {
+    if (uuid == null) {
+        return false;
     }
+    if (!members.contains(uuid)) {
+        return false;
+    }
+    if (isLeader(uuid)
+            || isCoLeader(uuid)) {
+        return false;
+    }
+
+    return captains.add(uuid);
+}
     public void demoteFromCaptain(UUID uuid) {
         if (uuid == null) {
             return;
