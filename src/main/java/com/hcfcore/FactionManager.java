@@ -19,7 +19,6 @@ private final Map<UUID, String> invites = new HashMap<>();
 public FactionManager(HCFCore plugin) {
     this.plugin = plugin;
     loadAll();
-
 }
 // =========================================================
 // FACTIONS
