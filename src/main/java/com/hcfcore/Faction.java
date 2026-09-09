@@ -154,11 +154,11 @@ public class Faction {
         }
         return members.contains(uuid);
     }
-    public void addMember(UUID uuid) {
+    public boolean addMember(UUID uuid) {
         if (uuid == null) {
-            return;
+            return false;
         }
-        members.add(uuid);
+        return members.add(uuid);
     }
     public void removeMember(UUID uuid) {
         if (uuid == null) {
