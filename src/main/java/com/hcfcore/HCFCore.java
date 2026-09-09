@@ -45,6 +45,12 @@ public class HCFCore extends JavaPlugin {
     private StaffToolsManager staffToolsManager;
     private VanishManager vanishManager;
 
+    /*
+     * ==============================
+     * TASKS
+     * ==============================
+     */
+
     private BukkitTask scoreboardTask;
     private BukkitTask dtrTask;
 
@@ -55,7 +61,9 @@ public class HCFCore extends JavaPlugin {
 
         saveDefaultConfig();
 
-        getLogger().info("Iniciando HCFCore...");
+        getLogger().info("=================================");
+        getLogger().info("       Iniciando HCFCore...");
+        getLogger().info("=================================");
 
         /*
          * ==============================
@@ -65,14 +73,11 @@ public class HCFCore extends JavaPlugin {
 
         try {
 
-            luckPermsHook =
-                    new LuckPermsHook(this);
+            luckPermsHook = new LuckPermsHook(this);
 
-            vaultHook =
-                    new VaultHook(this);
+            vaultHook = new VaultHook(this);
 
-            protocolLibHook =
-                    new ProtocolLibHook(this);
+            protocolLibHook = new ProtocolLibHook(this);
 
         } catch (Exception exception) {
 
@@ -82,9 +87,7 @@ public class HCFCore extends JavaPlugin {
 
             exception.printStackTrace();
 
-            getServer()
-                    .getPluginManager()
-                    .disablePlugin(this);
+            disablePlugin();
 
             return;
         }
@@ -95,21 +98,22 @@ public class HCFCore extends JavaPlugin {
          * ==============================
          */
 
-        databaseManager =
-                new DatabaseManager(this);
+        databaseManager = new DatabaseManager(this);
 
         if (!databaseManager.connect()) {
 
             getLogger().severe(
-                    "No se pudo iniciar la base de datos."
+                    "No se pudo conectar con SQLite."
             );
 
-            getServer()
-                    .getPluginManager()
-                    .disablePlugin(this);
+            disablePlugin();
 
             return;
         }
+
+        getLogger().info(
+                "SQLite conectado correctamente."
+        );
 
         /*
          * ==============================
@@ -117,50 +121,50 @@ public class HCFCore extends JavaPlugin {
          * ==============================
          */
 
-        factionManager =
-                new FactionManager(this);
+        try {
 
-        claimManager =
-                new ClaimManager(this);
+            factionManager = new FactionManager(this);
 
-        combatManager =
-                new CombatManager(this);
+            claimManager = new ClaimManager(this);
 
-        deathbanManager =
-                new DeathbanManager(this);
+            combatManager = new CombatManager(this);
 
-        economyManager =
-                new EconomyManager(this);
+            deathbanManager = new DeathbanManager(this);
 
-        kitManager =
-                new KitManager(this);
+            economyManager = new EconomyManager(this);
 
-        classManager =
-                new ClassManager(this);
+            kitManager = new KitManager(this);
 
-        airdropManager =
-                new AirdropManager(this);
+            classManager = new ClassManager(this);
 
-        kothManager =
-                new KothManager(this);
+            airdropManager = new AirdropManager(this);
 
-        scoreboardManager =
-                new ScoreboardManager(this);
+            kothManager = new KothManager(this);
 
-        villagerManager =
-                new VillagerManager(this);
+            scoreboardManager = new ScoreboardManager(this);
 
-        tabListManager =
-                new TabListManager(this);
+            villagerManager = new VillagerManager(this);
 
-        staffManager =
-                new StaffManager(this);
+            tabListManager = new TabListManager(this);
 
-        staffToolsManager =
-                new StaffToolsManager(this);
+            staffManager = new StaffManager(this);
 
-        vanishManager =
-                new VanishManager(this);
+            staffToolsManager = new StaffToolsManager(this);
+
+            vanishManager = new VanishManager(this);
+
+        } catch (Exception exception) {
+
+            getLogger().severe(
+                    "Error inicializando los managers de HCFCore."
+            );
+
+            exception.printStackTrace();
+
+            disablePlugin();
+
+            return;
+        }
 
         /*
          * ==============================
@@ -183,16 +187,23 @@ public class HCFCore extends JavaPlugin {
                         this
                 );
 
+        getLogger().info(
+                "HCFListener registrado correctamente."
+        );
+
         /*
          * ==============================
          * GUI
          * ==============================
          */
 
-        guiManager =
-                new GUIManager(this);
+        guiManager = new GUIManager(this);
 
         guiManager.register();
+
+        getLogger().info(
+                "GUI Manager registrado correctamente."
+        );
 
         /*
          * ==============================
@@ -200,8 +211,7 @@ public class HCFCore extends JavaPlugin {
          * ==============================
          */
 
-        Commands commands =
-                new Commands(this);
+        Commands commands = new Commands(this);
 
         registerCommand("f", commands);
         registerCommand("hcf", commands);
@@ -230,20 +240,19 @@ public class HCFCore extends JavaPlugin {
         )) {
 
             scoreboardTask =
-                    Bukkit.getScheduler()
-                            .runTaskTimer(
-                                    this,
-                                    () -> {
+                    Bukkit.getScheduler().runTaskTimer(
+                            this,
+                            () -> {
 
-                                        if (scoreboardManager != null) {
+                                if (scoreboardManager != null) {
 
-                                            scoreboardManager.updateAll();
-                                        }
+                                    scoreboardManager.updateAll();
+                                }
 
-                                    },
-                                    20L,
-                                    20L
-                            );
+                            },
+                            20L,
+                            20L
+                    );
 
             getLogger().info(
                     "Scoreboard activado."
@@ -257,20 +266,23 @@ public class HCFCore extends JavaPlugin {
          */
 
         dtrTask =
-                Bukkit.getScheduler()
-                        .runTaskTimer(
-                                this,
-                                () -> {
+                Bukkit.getScheduler().runTaskTimer(
+                        this,
+                        () -> {
 
-                                    if (factionManager != null) {
+                            if (factionManager != null) {
 
-                                        factionManager.regenerateDtr();
-                                    }
+                                factionManager.regenerateDtr();
+                            }
 
-                                },
-                                20L,
-                                20L
-                        );
+                        },
+                        20L,
+                        20L
+                );
+
+        getLogger().info(
+                "Regeneración DTR activada."
+        );
 
         /*
          * ==============================
@@ -281,6 +293,10 @@ public class HCFCore extends JavaPlugin {
         if (classManager != null) {
 
             classManager.startTask();
+
+            getLogger().info(
+                    "Class Manager activado."
+            );
         }
 
         /*
@@ -292,6 +308,10 @@ public class HCFCore extends JavaPlugin {
         if (combatManager != null) {
 
             combatManager.startCleanupTask();
+
+            getLogger().info(
+                    "Combat Manager activado."
+            );
         }
 
         /*
@@ -353,78 +373,31 @@ public class HCFCore extends JavaPlugin {
          * ==============================
          */
 
-        getLogger().info(
-                "================================="
-        );
-
-        getLogger().info(
-                "        HCFCore ACTIVADO"
-        );
-
-        getLogger().info(
-                "        Version 2.0.0"
-        );
-
-        getLogger().info(
-                "        Paper 1.20.4"
-        );
-
-        getLogger().info(
-                "        Java 17"
-        );
-
-        getLogger().info(
-                "        SQLite ACTIVADO"
-        );
-
-        getLogger().info(
-                "        LuckPerms CONECTADO"
-        );
-
-        getLogger().info(
-                "        Vault CONECTADO"
-        );
-
-        getLogger().info(
-                "        ProtocolLib CONECTADO"
-        );
-
-        getLogger().info(
-                "        EditGUI ACTIVADO"
-        );
-
-        getLogger().info(
-                "        TabList ACTIVADO"
-        );
-
-        getLogger().info(
-                "        Scoreboard ACTIVADO"
-        );
-
-        getLogger().info(
-                "        KOTH ACTIVADO"
-        );
-
-        getLogger().info(
-                "        Airdrops ACTIVADOS"
-        );
-
-        getLogger().info(
-                "        Staff Mode ACTIVADO"
-        );
-
-        getLogger().info(
-                "        Staff Tools ACTIVADO"
-        );
-
-        getLogger().info(
-                "        Vanish ACTIVADO"
-        );
-
-        getLogger().info(
-                "================================="
-        );
+        getLogger().info("=================================");
+        getLogger().info("        HCFCore ACTIVADO");
+        getLogger().info("        Version 2.0.0");
+        getLogger().info("        Paper 1.20.4");
+        getLogger().info("        Java 17");
+        getLogger().info("        SQLite ACTIVADO");
+        getLogger().info("        LuckPerms CONECTADO");
+        getLogger().info("        Vault CONECTADO");
+        getLogger().info("        ProtocolLib CONECTADO");
+        getLogger().info("        EditGUI ACTIVADO");
+        getLogger().info("        TabList ACTIVADO");
+        getLogger().info("        Scoreboard ACTIVADO");
+        getLogger().info("        KOTH ACTIVADO");
+        getLogger().info("        Airdrops ACTIVADOS");
+        getLogger().info("        Staff Mode ACTIVADO");
+        getLogger().info("        Staff Tools ACTIVADO");
+        getLogger().info("        Vanish ACTIVADO");
+        getLogger().info("=================================");
     }
+
+    /*
+     * ==============================
+     * COMMAND REGISTRATION
+     * ==============================
+     */
 
     private void registerCommand(
             String name,
@@ -441,9 +414,14 @@ public class HCFCore extends JavaPlugin {
             return;
         }
 
-        getCommand(name)
-                .setExecutor(commands);
+        getCommand(name).setExecutor(commands);
     }
+
+    /*
+     * ==============================
+     * WORLD BORDER
+     * ==============================
+     */
 
     private void setupWorldBorder() {
 
@@ -488,6 +466,7 @@ public class HCFCore extends JavaPlugin {
                 );
 
         if (size <= 0) {
+
             size = 5000.0;
         }
 
@@ -510,12 +489,44 @@ public class HCFCore extends JavaPlugin {
         );
     }
 
+    /*
+     * ==============================
+     * SAFE DISABLE
+     * ==============================
+     */
+
+    private void disablePlugin() {
+
+        try {
+
+            getServer()
+                    .getPluginManager()
+                    .disablePlugin(this);
+
+        } catch (Exception exception) {
+
+            exception.printStackTrace();
+        }
+    }
+
+    /*
+     * ==============================
+     * DISABLE
+     * ==============================
+     */
+
     @Override
     public void onDisable() {
 
         getLogger().info(
                 "Apagando HCFCore..."
         );
+
+        /*
+         * ==============================
+         * CANCEL TASKS
+         * ==============================
+         */
 
         if (scoreboardTask != null) {
 
@@ -530,7 +541,20 @@ public class HCFCore extends JavaPlugin {
         }
 
         /*
-         * Desactivar Vanish.
+         * ==============================
+         * COMBAT
+         * ==============================
+         */
+
+        if (combatManager != null) {
+
+            combatManager.clearAll();
+        }
+
+        /*
+         * ==============================
+         * VANISH
+         * ==============================
          */
 
         if (vanishManager != null) {
@@ -539,7 +563,9 @@ public class HCFCore extends JavaPlugin {
         }
 
         /*
-         * Desactivar Staff Mode.
+         * ==============================
+         * STAFF
+         * ==============================
          */
 
         if (staffManager != null) {
@@ -547,16 +573,34 @@ public class HCFCore extends JavaPlugin {
             staffManager.disableAll();
         }
 
+        /*
+         * ==============================
+         * AIRDROP
+         * ==============================
+         */
+
         if (airdropManager != null) {
 
             airdropManager.shutdown();
         }
+
+        /*
+         * ==============================
+         * KOTH
+         * ==============================
+         */
 
         if (kothManager != null
                 && kothManager.isActive()) {
 
             kothManager.stopKoth();
         }
+
+        /*
+         * ==============================
+         * SAVE DATA
+         * ==============================
+         */
 
         if (factionManager != null) {
 
@@ -573,6 +617,12 @@ public class HCFCore extends JavaPlugin {
             claimManager.saveAll();
         }
 
+        /*
+         * ==============================
+         * DATABASE
+         * ==============================
+         */
+
         if (databaseManager != null) {
 
             databaseManager.disconnect();
@@ -584,6 +634,12 @@ public class HCFCore extends JavaPlugin {
                 "HCFCore desactivada correctamente."
         );
     }
+
+    /*
+     * ==============================
+     * GETTERS
+     * ==============================
+     */
 
     public static HCFCore getInstance() {
         return instance;
