@@ -41,11 +41,34 @@ public class DatabaseManager {
             connection =
                     DriverManager.getConnection(url);
 
+            /*
+             * =========================
+             * SQLITE SETTINGS
+             * =========================
+             */
+
+            try (Statement statement =
+                         connection.createStatement()) {
+
+                statement.execute("PRAGMA foreign_keys = ON");
+                statement.execute("PRAGMA journal_mode = WAL");
+                statement.execute("PRAGMA busy_timeout = 5000");
+            }
+
             plugin.getLogger().info(
                     "Base de datos SQLite conectada."
             );
 
-            createTables();
+            if (!createTables()) {
+
+                plugin.getLogger().severe(
+                        "No se pudieron crear/verificar las tablas SQLite."
+                );
+
+                disconnect();
+
+                return false;
+            }
 
             return true;
 
@@ -61,10 +84,10 @@ public class DatabaseManager {
         }
     }
 
-    private void createTables() {
+    private boolean createTables() {
 
         if (connection == null) {
-            return;
+            return false;
         }
 
         try (Statement statement =
@@ -85,14 +108,29 @@ public class DatabaseManager {
                     )
                     """);
 
+            /*
+             * =========================
+             * FACTION MEMBERS
+             * =========================
+             */
+
             statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS faction_members (
                         faction TEXT NOT NULL,
                         uuid TEXT NOT NULL,
                         role TEXT NOT NULL DEFAULT 'MEMBER',
-                        PRIMARY KEY (faction, uuid)
+                        PRIMARY KEY (faction, uuid),
+                        FOREIGN KEY (faction)
+                            REFERENCES factions(name)
+                            ON DELETE CASCADE
                     )
                     """);
+
+            /*
+             * =========================
+             * ALLIES
+             * =========================
+             */
 
             statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS faction_allies (
@@ -102,6 +140,12 @@ public class DatabaseManager {
                     )
                     """);
 
+            /*
+             * =========================
+             * ENEMIES
+             * =========================
+             */
+
             statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS faction_enemies (
                         faction TEXT NOT NULL,
@@ -109,6 +153,12 @@ public class DatabaseManager {
                         PRIMARY KEY (faction, target)
                     )
                     """);
+
+            /*
+             * =========================
+             * FACTION HOMES
+             * =========================
+             */
 
             statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS faction_homes (
@@ -118,7 +168,10 @@ public class DatabaseManager {
                         y REAL NOT NULL,
                         z REAL NOT NULL,
                         yaw REAL NOT NULL,
-                        pitch REAL NOT NULL
+                        pitch REAL NOT NULL,
+                        FOREIGN KEY (faction)
+                            REFERENCES factions(name)
+                            ON DELETE CASCADE
                     )
                     """);
 
@@ -134,7 +187,10 @@ public class DatabaseManager {
                         chunk_x INTEGER NOT NULL,
                         chunk_z INTEGER NOT NULL,
                         faction TEXT NOT NULL,
-                        PRIMARY KEY (world, chunk_x, chunk_z)
+                        PRIMARY KEY (world, chunk_x, chunk_z),
+                        FOREIGN KEY (faction)
+                            REFERENCES factions(name)
+                            ON DELETE CASCADE
                     )
                     """);
 
@@ -191,9 +247,42 @@ public class DatabaseManager {
                     )
                     """);
 
+            /*
+             * =========================
+             * INDEXES
+             * =========================
+             */
+
+            statement.executeUpdate("""
+                    CREATE INDEX IF NOT EXISTS idx_faction_members_faction
+                    ON faction_members(faction)
+                    """);
+
+            statement.executeUpdate("""
+                    CREATE INDEX IF NOT EXISTS idx_faction_members_uuid
+                    ON faction_members(uuid)
+                    """);
+
+            statement.executeUpdate("""
+                    CREATE INDEX IF NOT EXISTS idx_claims_faction
+                    ON claims(faction)
+                    """);
+
+            statement.executeUpdate("""
+                    CREATE INDEX IF NOT EXISTS idx_claims_world
+                    ON claims(world)
+                    """);
+
+            statement.executeUpdate("""
+                    CREATE INDEX IF NOT EXISTS idx_deathbans_expires
+                    ON deathbans(expires_at)
+                    """);
+
             plugin.getLogger().info(
                     "Tablas SQLite verificadas correctamente."
             );
+
+            return true;
 
         } catch (SQLException e) {
 
@@ -202,6 +291,8 @@ public class DatabaseManager {
             );
 
             e.printStackTrace();
+
+            return false;
         }
     }
 
