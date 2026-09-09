@@ -187,19 +187,21 @@ public class Faction {
         }
         return coLeaders.contains(uuid);
     }
-    public void promoteToCoLeader(UUID uuid) {
-        if (uuid == null) {
-            return;
-        }
-        if (!members.contains(uuid)) {
-            return;
-        }
-        if (isLeader(uuid)) {
-            return;
-        }
-        captains.remove(uuid);
-        coLeaders.add(uuid);
+
+    public boolean promoteToCoLeader(UUID uuid) {
+    if (uuid == null) {
+        return false;
     }
+    if (!members.contains(uuid)) {
+        return false;
+    }
+    if (isLeader(uuid)) {
+        return false;
+    }
+
+    captains.remove(uuid);
+    return coLeaders.add(uuid);
+}
     public void demoteFromCoLeader(UUID uuid) {
         if (uuid == null) {
             return;
